@@ -2,6 +2,7 @@
 title: "第一篇文章艰难的孕育"
 date: 2025-09-06T05:00:00-07:00
 draft: false
+slug: "my-first-post"
 ---
 
 你好，世界！

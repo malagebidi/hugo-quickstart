@@ -4,6 +4,7 @@ title: "Deng Yang"
 theme: "netlify-basic"
 permalinks:
   posts: "/:slug/"
+disableHugoGeneratorInject: true 
 
 params:
   mainSections: ["posts"]

@@ -3,6 +3,7 @@
   command = "hugo"
   functions = "netlify/functions"
   publish = "public"
+  command = "hugo --gc --minify"
 
 [build.environment]
   HUGO_VERSION = "0.149.1"

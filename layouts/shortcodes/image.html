@@ -1,0 +1,42 @@
+{{/*
+  文件: layouts/shortcodes/image.html
+  版本: 最终版 (适配 GitHub Actions + 页面包工作流)
+  功能: 接收一个不带后缀的文件名作为 src，
+         在当前页面包中查找由 Actions 生成的对应 .avif 文件，
+         并渲染出带有完整属性的 <img> 标签。
+  参数:
+    - src: 图片的基础文件名 (例如 "photo-of-cat", 无后缀)
+    - alt: 图片的 alt 描述文字
+    - class: (可选) 为图片添加的 CSS 类
+*/}}
+
+{{/* 1. 获取 shortcode 传入的参数 */}}
+{{ $src := .Get "src" }}
+{{ $alt := .Get "alt" | default $src }}
+{{ $class := .Get "class" }}
+
+{{/* 2. 根据基础文件名，构造出我们期望的 .avif 文件名 */}}
+{{ $avifPath := printf "%s.avif" $src }}
+
+{{/* 3. 在当前页面的资源包 (.Page.Resources) 中查找这个 .avif 文件 */}}
+{{ with .Page.Resources.GetMatch $avifPath }}
+
+  {{/* 4. 如果找到了，就渲染带有最佳实践属性的 <img> 标签 */}}
+  <img
+    src="{{ .RelPermalink }}"
+    alt="{{ $alt }}"
+    class="{{ $class }}"
+    width="{{ .Width }}"
+    height="{{ .Height }}"
+    loading="lazy">
+
+{{ else }}
+
+  {{/* 5. 如果没找到，显示一段清晰的错误提示，方便排查问题 */}}
+  <p style="color: red;">
+    <strong>图片错误:</strong> 在此文章包中未找到 '{{ $avifPath }}'。
+    <br>
+    <small>请确认原图已上传，并等待 GitHub Action 执行成功。</small>
+  </p>
+
+{{ end }}

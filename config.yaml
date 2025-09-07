@@ -4,8 +4,9 @@ title: "Deng Yang"
 theme: "netlify-basic"
 timeZone: "Asia/Shanghai" 
 disableHugoGeneratorInject: true 
+uglyURLs: true
 permalinks:
-  posts: "/:slug"
+  posts: "/:slug/"
 
 params:
   mainSections: ["posts"]

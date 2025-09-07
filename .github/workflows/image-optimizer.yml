@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-    # 监视整个 posts 目录的变化
     paths:
       - 'content/posts/**'
 
@@ -24,27 +23,25 @@ jobs:
       - name: Install Sharp-CLI
         run: npm install -g sharp-cli
 
-      # 步骤3：核心处理脚本 (查找、转换、删除)
+      # 步骤3：核心处理脚本 (使用正确的 Sharp-CLI 语法)
       - name: Find, Process, and Cleanup Images
         run: |
           echo "Starting image processing..."
-          # 使用 find 命令递归查找所有 jpg, jpeg, png 文件
-          # -print0 和 xargs -0 是为了安全地处理带空格等特殊字符的文件名
-          find content/posts -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) -print0 | while IFS= read -r -d $'\0' file; do
-            # 获取文件所在的目录
+          find content/posts -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) -print0 | while IFS= read -r -d $'\0' file; do
             dir=$(dirname "$file")
-            # 获取不带后缀的文件名
             filename=$(basename "$file")
             base="${filename%.*}"
             
             echo "Found source image: $file"
             
-            # 定义输出的 AVIF 文件路径
             avif_output="${dir}/${base}.avif"
             echo "Target AVIF path: $avif_output"
 
-            # --- Sharp-CLI 命令：转换并生成 AVIF ---
-            sharp -i "$file" --resize 1600 --avif-quality 50 -o "$avif_output"
+            # --- 已修正和优化的 Sharp-CLI 命令 ---
+            sharp "$file" \
+              resize 1600 --without-enlargement \
+              avif --quality 50 \
+              toFile "$avif_output"
 
             # --- 检查是否成功，然后删除原图 ---
             if [ $? -eq 0 ]; then
@@ -52,7 +49,7 @@ jobs:
               rm "$file"
             else
               echo "ERROR: Failed to process $file. Halting workflow to prevent data loss."
-              exit 1 # 如果处理失败，终止整个任务，防止误删原图
+              exit 1
             fi
             echo "---------------------------------"
           done

@@ -1,57 +1,55 @@
 {{ define "main" }}
-<div id="content">
-  <tt>
-    {{/* 页眉部分：显示网站标题和导航链接 */}}
-    <b>{{ .Site.Title }}</b>
-    {{ with .Site.GetPage "contact.md" }}<a href="{{ .RelPermalink }}">Contact</a> |{{ end }}
-    {{ with .Site.GetPage "about.md" }}<a href="{{ .RelPermalink }}">About</a>{{ end }}
+<tt>
+  {{/* 页眉部分：显示网站标题和导航链接 */}}
+  <b>{{ .Site.Title }}</b>
+  {{ with .Site.GetPage "contact.md" }}<a href="{{ .RelPermalink }}">Contact</a> |{{ end }}
+  {{ with .Site.GetPage "about.md" }}<a href="{{ .RelPermalink }}">About</a>{{ end }}
 
-    <hr>
+  <hr>
 
-    {{/* 文章列表部分 */}}
-    {{/* 筛选主要部分的文章，并按日期倒序排列 */}}
-    {{ $pages := (where .Site.RegularPages "Type" "in" .Site.Params.mainSections).ByDate.Reverse }}
-    {{/* 按年份对文章进行分组 */}}
-    {{ $groupedPages := $pages.GroupByDate "2006" }}
-    {{ $numGroups := len $groupedPages }}
+  {{/* 文章列表部分 */}}
+  {{/* 筛选主要部分的文章，并按日期倒序排列 */}}
+  {{ $pages := (where .Site.RegularPages "Type" "in" .Site.Params.mainSections).ByDate.Reverse }}
+  {{/* 按年份对文章进行分组 */}}
+  {{ $groupedPages := $pages.GroupByDate "2006" }}
+  {{ $numGroups := len $groupedPages }}
 
-    {{/* 遍历每个年份的分组 */}}
-    {{ range $i, $group := $groupedPages }}
-      {{/* 遍历该年份下的所有文章 */}}
-      {{ range .Pages }}
-        <font>{{ .Date.Format "01/02/2006" }}</font> <a href="{{ .RelPermalink }}">
-          {{/*
-            如果文章的 front matter 中有 is_concept: true 参数，
-            标题将以斜体显示。
-            例如：
-            ---
-            title: "Concept Of Colors"
-            date: 2023-06-14
-            is_concept: true
-            ---
-          */}}
-          {{ if .Params.is_concept }}
-            <i>{{ .Title }}</i>
-          {{ else }}
-            {{ .Title }}
-          {{ end }}
-        </a><br>
-      {{ end }}
-
-      {{/* 在分组之间添加水平线，但最后一组后面不加 */}}
-      {{ if lt (add $i 1) $numGroups }}
-        <hr>
-      {{ end }}
+  {{/* 遍历每个年份的分组 */}}
+  {{ range $i, $group := $groupedPages }}
+    {{/* 遍历该年份下的所有文章 */}}
+    {{ range .Pages }}
+      <font>{{ .Date.Format "01/02/2006" }}</font> <a href="{{ .RelPermalink }}">
+        {{/*
+          如果文章的 front matter 中有 is_concept: true 参数，
+          标题将以斜体显示。
+          例如：
+          ---
+          title: "Concept Of Colors"
+          date: 2023-06-14
+          is_concept: true
+          ---
+        */}}
+        {{ if .Params.is_concept }}
+          <i>{{ .Title }}</i>
+        {{ else }}
+          {{ .Title }}
+        {{ end }}
+      </a><br>
     {{ end }}
 
-    <hr>
-
-    {{/* 页脚部分：显示最后更新日期 */}}
-    {{ if $pages }}
-      {{ $latestPage := index $pages 0 }}
-      Last <a href="http://www.neocities.org/site/simplifier">updated</a> on {{ $latestPage.Date.Format "01/02/2006" }}.
+    {{/* 在分组之间添加水平线，但最后一组后面不加 */}}
+    {{ if lt (add $i 1) $numGroups }}
+      <hr>
     {{ end }}
+  {{ end }}
+
+  <hr>
+
+  {{/* 页脚部分：显示最后更新日期 */}}
+  {{ if $pages }}
+    {{ $latestPage := index $pages 0 }}
+    Last <a href="http://www.neocities.org/site/simplifier">updated</a> on {{ $latestPage.Date.Format "01/02/2006" }}.
+  {{ end }}
 
   </tt>
-</div>
 {{ end }}

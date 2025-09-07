@@ -1,7 +1,6 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Version: Uses dimension data saved by GitHub Actions
-  Finds and uses the .avif file with dimensions from data/image_dimensions.yaml
+  Version: Reads dimensions from hidden .image_dimensions.yaml file
 */}}
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
@@ -9,15 +8,19 @@
 {{ $avifPath := printf "%s.avif" $src }}
 {{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
-{{/* Try to get dimensions from local page bundle data */}}
+{{/* Try to get dimensions from hidden dimensions file */}}
 {{ $width := "" }}
 {{ $height := "" }}
 {{ $dimensionsFound := false }}
 
-{{/* Look for image_dimensions.yaml in the current page bundle */}}
-{{ $dimensionsResource := .Page.Resources.GetMatch "image_dimensions.yaml" }}
-{{ with $dimensionsResource }}
-  {{ $dimensionsData := . | transform.Unmarshal }}
+{{/* Construct path to dimensions file */}}
+{{ $pagePath := .Page.File.Dir }}
+{{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
+
+{{/* Try to read the dimensions file */}}
+{{ if fileExists $dimensionsFilePath }}
+  {{ $dimensionsContent := readFile $dimensionsFilePath }}
+  {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
   {{ with $dimensionsData.dimensions }}
     {{ with (index . $src) }}
       {{ $width = .width }}

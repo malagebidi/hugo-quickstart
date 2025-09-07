@@ -1,7 +1,7 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Hybrid AVIF Solution - Always get dimensions from original source
-  This works around Hugo's limited AVIF processing support
+  Version: Uses dimension data saved by GitHub Actions
+  Finds and uses the .avif file with dimensions from data/image_dimensions.yaml
 */}}
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
@@ -9,22 +9,21 @@
 {{ $avifPath := printf "%s.avif" $src }}
 {{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
-{{/* Always try to get dimensions from the original source image first */}}
+{{/* Try to get dimensions from saved data */}}
 {{ $width := "" }}
 {{ $height := "" }}
 {{ $dimensionsFound := false }}
 
-{{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
-{{ with $originalResource }}
-  {{ if and (eq .ResourceType "image") (not (in (printf "%T" .) "resourceAdapter")) }}
-    {{ $width = .Width }}
-    {{ $height = .Height }}
+{{ with .Site.Data.image_dimensions.dimensions }}
+  {{ with (index . $src) }}
+    {{ $width = .width }}
+    {{ $height = .height }}
     {{ $dimensionsFound = true }}
   {{ end }}
 {{ end }}
 
 {{ if $avifResource }}
-  {{/* Case A: Use AVIF with dimensions from original source */}}
+  {{/* Case A: The .avif file was found */}}
   <img 
     src="{{ $avifResource.RelPermalink }}" 
     alt="{{ $alt }}" 
@@ -35,8 +34,20 @@
     {{ end }}
     loading="lazy">
 {{ else }}
-  {{/* Case B: Fall back to original source */}}
+  {{/* Case B: The .avif file was NOT found, so find the original source image */}}
+  {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
   {{ with $originalResource }}
+    {{/* Try to get dimensions safely from original resource */}}
+    {{ $originalWidth := "" }}
+    {{ $originalHeight := "" }}
+    {{ $originalDimensionsFound := false }}
+    
+    {{ if and (eq .ResourceType "image") (not (in (printf "%T" .) "resourceAdapter")) }}
+      {{ $originalWidth = .Width }}
+      {{ $originalHeight = .Height }}
+      {{ $originalDimensionsFound = true }}
+    {{ end }}
+    
     <img 
       src="{{ .RelPermalink }}" 
       alt="{{ $alt }}" 
@@ -44,10 +55,13 @@
       {{ if $dimensionsFound }}
       width="{{ $width }}" 
       height="{{ $height }}"
+      {{ else if $originalDimensionsFound }}
+      width="{{ $originalWidth }}" 
+      height="{{ $originalHeight }}"
       {{ end }}
       loading="lazy">
   {{ else }}
-    {{/* Case C: No images found */}}
+    {{/* Case C: Neither the .avif nor an original source image was found */}}
     <p style="color: red;">
       <strong>Image Error:</strong> Could not find any image resource matching '{{ $src }}' in this Page Bundle.
     </p>

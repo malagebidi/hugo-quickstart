@@ -7,4 +7,4 @@ draft: false
 
 为什么从WordPress转到Hugo呢？我还记得至少15年前
 
-{{< image src="fatalfury_logo_togo" alt="返回额" >}}
+{{< image src="fatalfury_logo_togo" alt="返回1额" >}}

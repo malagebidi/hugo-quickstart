@@ -39,7 +39,6 @@ jobs:
 
             # --- 已修正和优化的 Sharp-CLI 命令 ---
             sharp "$file" \
-              resize 1600 --without-enlargement \
               avif --quality 50 \
               toFile "$avif_output"
 

@@ -1,6 +1,6 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Version: Reads dimensions from hidden .image_dimensions.yaml file
+  Compatible version for Netlify Hugo template
 */}}
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
@@ -13,19 +13,35 @@
 {{ $height := "" }}
 {{ $dimensionsFound := false }}
 
-{{/* Construct path to dimensions file */}}
-{{ $pagePath := .Page.File.Dir }}
+{{/* More robust path construction */}}
+{{ $pagePath := "" }}
+{{ with .Page.File }}
+  {{ $pagePath = .Dir }}
+{{ else }}
+  {{/* Fallback for pages without File (like _index.md) */}}
+  {{ $pagePath = .Page.RelPermalink | strings.TrimSuffix "/" | strings.TrimPrefix "/" }}
+  {{ if eq $pagePath "" }}
+    {{ $pagePath = "." }}
+  {{ end }}
+  {{ $pagePath = printf "%s/" $pagePath }}
+{{ end }}
+
 {{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
+
+{{/* Debug info - remove this in production */}}
+<!-- Debug: Looking for dimensions file at: {{ $dimensionsFilePath }} -->
 
 {{/* Try to read the dimensions file */}}
 {{ if fileExists $dimensionsFilePath }}
   {{ $dimensionsContent := readFile $dimensionsFilePath }}
-  {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
-  {{ with $dimensionsData.dimensions }}
-    {{ with (index . $src) }}
-      {{ $width = .width }}
-      {{ $height = .height }}
-      {{ $dimensionsFound = true }}
+  {{ if $dimensionsContent }}
+    {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
+    {{ with $dimensionsData.dimensions }}
+      {{ with (index . $src) }}
+        {{ $width = .width }}
+        {{ $height = .height }}
+        {{ $dimensionsFound = true }}
+      {{ end }}
     {{ end }}
   {{ end }}
 {{ end }}
@@ -45,17 +61,6 @@
   {{/* Case B: The .avif file was NOT found, so find the original source image */}}
   {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
   {{ with $originalResource }}
-    {{/* Try to get dimensions safely from original resource */}}
-    {{ $originalWidth := "" }}
-    {{ $originalHeight := "" }}
-    {{ $originalDimensionsFound := false }}
-    
-    {{ if and (eq .ResourceType "image") (not (in (printf "%T" .) "resourceAdapter")) }}
-      {{ $originalWidth = .Width }}
-      {{ $originalHeight = .Height }}
-      {{ $originalDimensionsFound = true }}
-    {{ end }}
-    
     <img 
       src="{{ .RelPermalink }}" 
       alt="{{ $alt }}" 
@@ -63,13 +68,10 @@
       {{ if $dimensionsFound }}
       width="{{ $width }}" 
       height="{{ $height }}"
-      {{ else if $originalDimensionsFound }}
-      width="{{ $originalWidth }}" 
-      height="{{ $originalHeight }}"
       {{ end }}
       loading="lazy">
   {{ else }}
-    {{/* Case C: Neither the .avif nor an original source image was found */}}
+    {{/* Case C: No images found */}}
     <p style="color: red;">
       <strong>Image Error:</strong> Could not find any image resource matching '{{ $src }}' in this Page Bundle.
     </p>

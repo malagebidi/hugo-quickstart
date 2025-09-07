@@ -1,12 +1,12 @@
 baseURL: "https://dengya.ng/"
-languageCode: "en-us"
+languageCode: en-us
 title: "Deng Yang"
 theme: "netlify-basic"
 timeZone: "Asia/Shanghai" 
 disableHugoGeneratorInject: true 
 uglyURLs: true
 permalinks:
-  posts: "/:slug/"
+  posts: /:slug/
 
 params:
   mainSections: ["posts"]

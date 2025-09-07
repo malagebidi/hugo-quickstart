@@ -1,6 +1,7 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Simple Debug Version
+  Hybrid AVIF Solution - Always get dimensions from original source
+  This works around Hugo's limited AVIF processing support
 */}}
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
@@ -8,35 +9,47 @@
 {{ $avifPath := printf "%s.avif" $src }}
 {{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
-<div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">
-  <strong>Debug Info:</strong><br>
-  Looking for: {{ $avifPath }}<br>
-  {{ if $avifResource }}
-    ✅ AVIF Found: {{ $avifResource.RelPermalink }}<br>
-    Resource Type: {{ printf "%T" $avifResource }}<br>
-    {{ with $avifResource.ResourceType }}Category: {{ . }}<br>{{ end }}
-    {{ with $avifResource.MediaType }}Media Type: {{ . }}<br>{{ end }}
-  {{ else }}
-    ❌ AVIF Not Found<br>
-  {{ end }}
-</div>
+{{/* Always try to get dimensions from the original source image first */}}
+{{ $width := "" }}
+{{ $height := "" }}
+{{ $dimensionsFound := false }}
 
-{{/* Safe rendering without Width/Height */}}
+{{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
+{{ with $originalResource }}
+  {{ if and (eq .ResourceType "image") (not (in (printf "%T" .) "resourceAdapter")) }}
+    {{ $width = .Width }}
+    {{ $height = .Height }}
+    {{ $dimensionsFound = true }}
+  {{ end }}
+{{ end }}
+
 {{ if $avifResource }}
+  {{/* Case A: Use AVIF with dimensions from original source */}}
   <img 
     src="{{ $avifResource.RelPermalink }}" 
     alt="{{ $alt }}" 
     class="{{ $class }}" 
+    {{ if $dimensionsFound }}
+    width="{{ $width }}" 
+    height="{{ $height }}"
+    {{ end }}
     loading="lazy">
 {{ else }}
-  {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
+  {{/* Case B: Fall back to original source */}}
   {{ with $originalResource }}
     <img 
       src="{{ .RelPermalink }}" 
       alt="{{ $alt }}" 
       class="{{ $class }}" 
+      {{ if $dimensionsFound }}
+      width="{{ $width }}" 
+      height="{{ $height }}"
+      {{ end }}
       loading="lazy">
   {{ else }}
-    <p style="color: red;">No image found for: {{ $src }}</p>
+    {{/* Case C: No images found */}}
+    <p style="color: red;">
+      <strong>Image Error:</strong> Could not find any image resource matching '{{ $src }}' in this Page Bundle.
+    </p>
   {{ end }}
 {{ end }}

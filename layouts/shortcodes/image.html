@@ -1,43 +1,27 @@
-{{/*
-  File: layouts/shortcodes/image.html
-  Version: Final (with SVG support)
-  Description: Handles Page Bundles and global assets, and now correctly
-               displays SVG files without trying to process them.
-*/}}
-
+<div style="border: 2px solid red; padding: 10px; margin: 10px; background: #ffeeee; color: black; font-family: monospace; font-size: 14px;">
+  <strong style="display: block; margin-bottom: 5px;">[Shortcode Debugger]</strong>
+  <ul>
+    <li><strong>Shortcode looking for:</strong> {{ printf "%s.avif" (.Get "src") }}</li>
+    <li><strong>Available Resources in this Page Bundle:</strong>
+      <ul>
+        {{ if .Page.Resources }}
+          {{ range .Page.Resources }}
+            <li>{{ .Name }}</li>
+          {{ end }}
+        {{ else }}
+          <li>-- No resources found --</li>
+        {{ end }}
+      </ul>
+    </li>
+  </ul>
+</div>
+{{/* --- 原始 shortcode 代码不变 --- */}}
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
 {{ $class := .Get "class" }}
-
-{{ $image := "" }}
-
-{{/* 优先：在当前页面的资源包里寻找图片 */}}
-{{ with .Page.Resources.GetMatch $src }}
-  {{ $image = . }}
-{{/* 备用：如果上面没找到，就去全局的 /assets 目录里寻找 */}}
+{{ $avifPath := printf "%s.avif" $src }}
+{{ with .Page.Resources.GetMatch $avifPath }}
+  <img src="{{ .RelPermalink }}" alt="{{ $alt }}" class="{{ $class }}" width="{{ .Width }}" height="{{ .Height }}" loading="lazy">
 {{ else }}
-  {{ $srcPath := printf "images/%s" $src }}
-  {{ $image = resources.Get $srcPath }}
-{{ end }}
-
-
-{{ if $image }}
-  {{/* --- 新增：检查文件类型 --- */}}
-  {{ if eq $image.MediaType.SubType "svg" }}
-    {{/* 如果是 SVG, 直接输出 <img> 标签，不进行任何处理 */}}
-    <img src="{{ $image.RelPermalink }}" alt="{{ $alt }}" class="{{ $class }}" loading="lazy">
-  {{ else }}
-    {{/* 如果是其他图片 (JPG, PNG, etc.), 执行我们之前的处理流程 */}}
-    {{ $avif := $image.Process "avif q50" }}
-    {{ $webp := $image.Process "webp q75" }}
-    {{ $originalFormat := $image.Process (printf "%s q85" $image.MediaType.SubType) }}
-    
-    <picture>
-      <source srcset="{{ $avif.RelPermalink }}" type="image/avif">
-      <source srcset="{{ $webp.RelPermalink }}" type="image/webp">
-      <img src="{{ $originalFormat.RelPermalink }}" alt="{{ $alt }}" class="{{ $class }}" width="{{ $image.Width }}" height="{{ $image.Height }}" loading="lazy">
-    </picture>
-  {{ end }}
-{{ else }}
-  <p style="color: red;">图片错误: 未在页面包或 'assets/images/' 目录中找到 '{{ $src }}'</p>
+  <p style="color: red;"><strong>Image Error:</strong> Could not find '{{ $avifPath }}' in this Page Bundle.</p>
 {{ end }}

@@ -62,7 +62,7 @@ jobs:
             echo "---------------------------------"
           done
           echo "Image conversion finished."
-          echo "Dimensions data saved to data/image_dimensions.yaml"
+          echo "Dimensions data saved to respective directories"
       - name: Commit and Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:

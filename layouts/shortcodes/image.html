@@ -1,8 +1,6 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Version: Simplest Safe Version
-  Finds and uses the .avif file if it exists, otherwise falls back to the original source image.
-  Omits width/height if resource doesn't support them.
+  Debug Version - This will show us what Hugo thinks about your AVIF file
 */}}
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
@@ -10,15 +8,72 @@
 {{ $avifPath := printf "%s.avif" $src }}
 {{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
+<div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">
+  <strong>Debug Info for: {{ $src }}</strong><br>
+  AVIF Path: {{ $avifPath }}<br>
+  {{ if $avifResource }}
+    ✅ AVIF Resource Found<br>
+    Resource Type: {{ printf "%T" $avifResource }}<br>
+    {{ with $avifResource.ResourceType }}Resource Category: {{ . }}<br>{{ end }}
+    RelPermalink: {{ $avifResource.RelPermalink }}<br>
+    {{ with $avifResource.MediaType }}Media Type: {{ . }}<br>{{ end }}
+    
+    {{/* Try to detect if Width method exists */}}
+    {{ $hasWidthMethod := false }}
+    {{ $widthError := "" }}
+    {{ $testWidth := "" }}
+    
+    {{/* This is a safe way to test if Width method works */}}
+    {{ range seq 1 1 }}
+      {{ $testWidth = $avifResource.Width | default "NO_WIDTH" }}
+      {{ if eq $testWidth "NO_WIDTH" }}
+        {{ $widthError = "Width method returned no value" }}
+      {{ else }}
+        {{ $hasWidthMethod = true }}
+      {{ end }}
+    {{ end }}
+    
+    {{ if $hasWidthMethod }}
+      ✅ Width/Height methods work<br>
+      Width: {{ $avifResource.Width }}<br>
+      Height: {{ $avifResource.Height }}<br>
+    {{ else }}
+      ❌ Width/Height methods don't work<br>
+      Error: {{ $widthError }}<br>
+    {{ end }}
+  {{ else }}
+    ❌ No AVIF Resource Found<br>
+  {{ end }}
+  
+  {{/* Also check original resource */}}
+  {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
+  {{ if $originalResource }}
+    ✅ Original Resource Found<br>
+    Original Type: {{ printf "%T" $originalResource }}<br>
+    {{ with $originalResource.ResourceType }}Original Category: {{ . }}<br>{{ end }}
+  {{ else }}
+    ❌ No Original Resource Found<br>
+  {{ end }}
+</div>
+
+{{/* Now render the actual image with safe fallback */}}
 {{ if $avifResource }}
-  {{/* Case A: The .avif file was found */}}
-  <img 
-    src="{{ $avifResource.RelPermalink }}" 
-    alt="{{ $alt }}" 
-    class="{{ $class }}" 
-    loading="lazy">
+  {{ if $hasWidthMethod }}
+    <img 
+      src="{{ $avifResource.RelPermalink }}" 
+      alt="{{ $alt }}" 
+      class="{{ $class }}" 
+      width="{{ $avifResource.Width }}" 
+      height="{{ $avifResource.Height }}" 
+      loading="lazy">
+  {{ else }}
+    <img 
+      src="{{ $avifResource.RelPermalink }}" 
+      alt="{{ $alt }}" 
+      class="{{ $class }}" 
+      loading="lazy">
+  {{ end }}
 {{ else }}
-  {{/* Case B: The .avif file was NOT found, so find the original source image */}}
   {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
   {{ with $originalResource }}
     <img 
@@ -27,7 +82,6 @@
       class="{{ $class }}" 
       loading="lazy">
   {{ else }}
-    {{/* Case C: Neither the .avif nor an original source image was found */}}
     <p style="color: red;">
       <strong>Image Error:</strong> Could not find any image resource matching '{{ $src }}' in this Page Bundle.
     </p>

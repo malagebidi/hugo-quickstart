@@ -23,10 +23,13 @@ jobs:
       - name: Install Sharp-CLI
         run: npm install -g sharp-cli
 
-      # 步骤3：核心处理脚本 (使用正确的 Sharp-CLI 语法)
+      # 步骤3：核心处理脚本 (严格遵循官方文档语法)
       - name: Find, Process, and Cleanup Images
         run: |
           echo "Starting image processing..."
+          # 创建一个临时的输出目录
+          mkdir -p temp_output_dir
+          
           find content/posts -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) -print0 | while IFS= read -r -d $'\0' file; do
             dir=$(dirname "$file")
             filename=$(basename "$file")
@@ -34,16 +37,22 @@ jobs:
             
             echo "Found source image: $file"
             
-            avif_output="${dir}/${base}.avif"
-            echo "Target AVIF path: $avif_output"
+            # --- 严格按照官方文档的正确 Sharp-CLI 命令 ---
+            # -i: 输入文件
+            # -o: 输出目录 (注意！这里是目录，不是文件)
+            # -f: 强制输出格式为 avif
+            # -q: 质量为 50
+            sharp -i "$file" -o ./temp_output_dir -f avif -q 50
 
-            # --- 已修正和优化的 Sharp-CLI 命令 ---
-            sharp "$file" \
-              avif --quality 50 \
-              toFile "$avif_output"
-
-            # --- 检查是否成功，然后删除原图 ---
             if [ $? -eq 0 ]; then
+              # sharp 会在 temp_output_dir 中生成一个同名但后缀不同的文件
+              # 我们需要找到它并将它移动到最终的位置
+              processed_file=$(find ./temp_output_dir -type f -name "${base}.*")
+              final_path="${dir}/${base}.avif"
+              
+              echo "Moving processed file $processed_file to $final_path"
+              mv "$processed_file" "$final_path"
+              
               echo "Successfully created AVIF. Deleting original: $file"
               rm "$file"
             else
@@ -52,6 +61,8 @@ jobs:
             fi
             echo "---------------------------------"
           done
+          # 清理临时目录
+          rm -rf ./temp_output_dir
           echo "Image processing finished."
 
       # 步骤4：自动提交所有变更

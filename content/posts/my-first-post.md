@@ -7,11 +7,11 @@ draft: false
 
 你好，世界！
 
-这是我的**第一篇**博客文章。我正在使用 [Hugo](https://gohugo.io/) 和 [Netlify](https://www.netlify.com/) 搭建这个网站。
+这是我的**第一篇**博客文章。我正在使用[Hugo](https://gohugo.io/)和[Netlify](https://www.netlify.com/)搭建这个网站。
 
-## 为什么选择 Hugo
+## 为什么选择Hugo
 
-Hugo 有几个很棒的优点：
+Hugo有几个很棒的优点：
 
 - 速度极快
 - 安装简单

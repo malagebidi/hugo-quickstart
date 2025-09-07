@@ -1,6 +1,6 @@
 # .github/workflows/image-optimizer.yml
 
-name: Convert Bundle Images to AVIF
+name: Convert Bundle Images to AVIF with ImageMagick
 
 on:
   push:
@@ -37,15 +37,14 @@ jobs:
             avif_output="${dir}/${base}.avif"
             echo "Target AVIF path: $avif_output"
 
-            # --- 已简化的 ImageMagick 命令 (无缩放) ---
-            # 只进行格式转换和质量压缩
-            magick "$file" -quality 50 "$avif_output"
+            # --- THE FIX: Use the 'convert' command instead of 'magick' ---
+            convert "$file" -quality 50 "$avif_output"
 
             if [ $? -eq 0 ]; then
               echo "Successfully created AVIF. Deleting original: $file"
               rm "$file"
             else
-              echo "ERROR: Failed to process $file with ImageMagick. Halting workflow."
+              echo "ERROR: Failed to process $file with ImageMagick/convert. Halting workflow."
               exit 1
             fi
             echo "---------------------------------"

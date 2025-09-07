@@ -5,7 +5,7 @@ theme: "netlify-basic"
 timeZone: "Asia/Shanghai" 
 disableHugoGeneratorInject: true 
 permalinks:
-  posts: "/:slug/"
+  posts: "/:slug"
 
 params:
   mainSections: ["posts"]

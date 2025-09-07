@@ -1,16 +1,14 @@
 {{ define "main" }}
-<div id="content">
-  <div class="header">
-    <h1>文章列表</h1>
-  </div>
-  <ul>
-    {{ $pages := where .Site.RegularPages "Type" "in" .Site.Params.mainSections }}
-    {{ range $pages.ByDate.Reverse }}
-      <li>
-        <a href="{{ .RelPermalink }}">{{ .Title }}</a>
-        <span>({{ .Date.Format "2006-01-02" }})</span>
-      </li>
-    {{ end }}
-  </ul>
-</div>
+    <div class="header">
+        <h1>文章列表</h1>
+    </div>
+    <ul>
+        {{ $pages := where .Site.RegularPages "Type" "in" .Site.Params.mainSections }}
+        {{ range $pages.ByDate.Reverse }}
+          <li>
+            <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+            <span>({{ .Date.Format "2006-01-02" }})</span>
+          </li>
+        {{ end }}
+    </ul>
 {{ end }}

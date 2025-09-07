@@ -10,3 +10,13 @@ permalinks:
 
 params:
   mainSections: ["posts"]
+
+mediaTypes:
+  image/avif:
+    suffixes:
+      - avif
+
+outputFormats:
+  AVIF:
+    mediaType: "image/avif"
+    isPlainText: false

@@ -19,10 +19,15 @@
     height="{{ $avifResource.Height }}" 
     loading="lazy">
 {{ else }}
-  {{/* Case B: The .avif file was NOT found or is not an image, so find the original source image */}}
+  {{/* Case B: The .avif file was NOT found, so find the original source image */}}
   {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
   {{ with $originalResource }}
-    {{ if eq .ResourceType "image" }}
+    {{ $hasOriginalImageMethods := false }}
+    {{ if reflect.IsMethod . "Width" }}
+      {{ $hasOriginalImageMethods = true }}
+    {{ end }}
+    
+    {{ if $hasOriginalImageMethods }}
       <img 
         src="{{ .RelPermalink }}" 
         alt="{{ $alt }}" 
@@ -31,10 +36,11 @@
         height="{{ .Height }}" 
         loading="lazy">
     {{ else }}
-      {{/* Found resource but it's not an image */}}
-      <p style="color: red;">
-        <strong>Image Error:</strong> Resource '{{ $src }}' exists but is not an image (type: {{ .ResourceType }}).
-      </p>
+      <img 
+        src="{{ .RelPermalink }}" 
+        alt="{{ $alt }}" 
+        class="{{ $class }}" 
+        loading="lazy">
     {{ end }}
   {{ else }}
     {{/* Case C: Neither the .avif nor an original source image was found */}}

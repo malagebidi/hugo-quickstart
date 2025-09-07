@@ -1,8 +1,7 @@
 {{/*
-  文件: layouts/shortcodes/image.html
-  版本: 终极版 (解决 Race Condition)
-  功能: 优先寻找并使用 .avif 文件。如果找不到（在第一次构建时），
-         则优雅地回退，寻找并使用页面包中的原始图片 (jpg/png/webp)。
+  File: layouts/shortcodes/image.html
+  Version: Definitive (Solves Race Condition)
+  Finds and uses the .avif file if it exists, otherwise falls back to the original source image.
 */}}
 
 {{ $src := .Get "src" }}
@@ -13,7 +12,7 @@
 {{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
 {{ if $avifResource }}
-  {{/* 方案A: 找到了 AVIF (第二次构建) */}}
+  {{/* Case A: The .avif file was found (second build after Action completes) */}}
   <img 
     src="{{ $avifResource.RelPermalink }}" 
     alt="{{ $alt }}" 
@@ -22,7 +21,7 @@
     height="{{ $avifResource.Height }}" 
     loading="lazy">
 {{ else }}
-  {{/* 方案B: 没找到 AVIF (第一次构建)，尝试寻找原图 */}}
+  {{/* Case B: The .avif file was NOT found (first build), so find the original source image */}}
   {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
   {{ with $originalResource }}
     <img 
@@ -33,9 +32,9 @@
       height="{{ .Height }}" 
       loading="lazy">
   {{ else }}
-    {{/* 方案C: 连原图都找不到，才真正报错 */}}
+    {{/* Case C: Neither the .avif nor an original source image was found */}}
     <p style="color: red;">
-      <strong>图片错误:</strong> 在此文章包中找不到任何名为 '{{ $src }}' 的图片资源。
+      <strong>Image Error:</strong> Could not find any image resource matching '{{ $src }}' in this Page Bundle.
     </p>
   {{ end }}
 {{ end }}

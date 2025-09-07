@@ -1,6 +1,6 @@
 # .github/workflows/image-optimizer.yml
 
-name: Process Bundle Images to AVIF
+name: Convert Bundle Images to AVIF
 
 on:
   push:
@@ -11,28 +11,22 @@ on:
 
 jobs:
   build:
-    name: Process Bundle Images Job
+    name: Convert Images Job
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
 
     steps:
-      # 步骤1：检出代码
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 步骤2：安装 Sharp-CLI 工具
-      - name: Install Sharp-CLI
-        run: npm install -g sharp-cli
+      - name: Install ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
 
-      # 步骤3：核心处理脚本 (严格遵循官方文档语法)
-      - name: Find, Process, and Cleanup Images
+      - name: Find, Convert, and Cleanup Images
         run: |
-          echo "Starting image processing..."
-          # 创建一个临时的输出目录
-          mkdir -p temp_output_dir
-          
+          echo "Starting image conversion with ImageMagick..."
           find content/posts -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) -print0 | while IFS= read -r -d $'\0' file; do
             dir=$(dirname "$file")
             filename=$(basename "$file")
@@ -40,38 +34,27 @@ jobs:
             
             echo "Found source image: $file"
             
-            # --- 严格按照官方文档的正确 Sharp-CLI 命令 ---
-            # -i: 输入文件
-            # -o: 输出目录 (注意！这里是目录，不是文件)
-            # -f: 强制输出格式为 avif
-            # -q: 质量为 50
-            sharp -i "$file" -o ./temp_output_dir -f avif -q 50
+            avif_output="${dir}/${base}.avif"
+            echo "Target AVIF path: $avif_output"
+
+            # --- 已简化的 ImageMagick 命令 (无缩放) ---
+            # 只进行格式转换和质量压缩
+            magick "$file" -quality 50 "$avif_output"
 
             if [ $? -eq 0 ]; then
-              # sharp 会在 temp_output_dir 中生成一个同名但后缀不同的文件
-              # 我们需要找到它并将它移动到最终的位置
-              processed_file=$(find ./temp_output_dir -type f -name "${base}.*")
-              final_path="${dir}/${base}.avif"
-              
-              echo "Moving processed file $processed_file to $final_path"
-              mv "$processed_file" "$final_path"
-              
               echo "Successfully created AVIF. Deleting original: $file"
               rm "$file"
             else
-              echo "ERROR: Failed to process $file. Halting workflow to prevent data loss."
+              echo "ERROR: Failed to process $file with ImageMagick. Halting workflow."
               exit 1
             fi
             echo "---------------------------------"
           done
-          # 清理临时目录
-          rm -rf ./temp_output_dir
-          echo "Image processing finished."
+          echo "Image conversion finished."
 
-      # 步骤4：自动提交所有变更
       - name: Commit and Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: 'build(media): Process bundle images to AVIF and remove source'
+          commit_message: 'build(media): Convert bundle images to AVIF and remove source'
           commit_user_name: 'GitHub Actions Bot'
           commit_user_email: 'actions@github.com'

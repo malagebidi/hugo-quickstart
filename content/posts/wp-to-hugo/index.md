@@ -7,4 +7,4 @@ draft: false
 
 为什么从WordPress转到Hugo呢？我还记得至少15年前
 
-{{< image src="ComboCuts" alt="ComboCuts" class="img-responsive" >}}
+{{< image src="ComboCuts" alt="返回额" >}}

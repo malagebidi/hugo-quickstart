@@ -1,5 +1,5 @@
 # .github/workflows/image-optimizer.yml
-name: Convert Bundle Images to AVIF with ImageMagick
+name: Convert Bundle Images to AVIF with avifenc
 on:
   push:
     branches:
@@ -17,11 +17,13 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Install ImageMagick
-        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      - name: Install avifenc and ImageMagick (for identify)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libavif-bin imagemagick
       - name: Find, Convert, Save Dimensions, and Cleanup Images
         run: |
-          echo "Starting image conversion with ImageMagick..."
+          echo "Starting image conversion with avifenc..."
           
           find content/posts -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) -print0 | while IFS= read -r -d $'\0' file; do
             dir=$(dirname "$file")
@@ -53,13 +55,15 @@ jobs:
             
             avif_output="${dir}/${base}.avif"
             echo "Target AVIF path: $avif_output"
-            # --- THE FIX: Use the 'convert' command instead of 'magick' ---
-            convert "$file" -quality 50 "$avif_output"
+            
+            # Use avifenc with good quality settings
+            avifenc --min 0 --max 30 --speed 6 "$file" "$avif_output"
+            
             if [ $? -eq 0 ]; then
               echo "Successfully created AVIF. Deleting original: $file"
               rm "$file"
             else
-              echo "ERROR: Failed to process $file with ImageMagick/convert. Halting workflow."
+              echo "ERROR: Failed to process $file with avifenc. Halting workflow."
               exit 1
             fi
             echo "---------------------------------"

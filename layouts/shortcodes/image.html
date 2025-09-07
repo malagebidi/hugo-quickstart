@@ -9,16 +9,21 @@
 {{ $avifPath := printf "%s.avif" $src }}
 {{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
-{{/* Try to get dimensions from saved data */}}
+{{/* Try to get dimensions from local page bundle data */}}
 {{ $width := "" }}
 {{ $height := "" }}
 {{ $dimensionsFound := false }}
 
-{{ with .Site.Data.image_dimensions.dimensions }}
-  {{ with (index . $src) }}
-    {{ $width = .width }}
-    {{ $height = .height }}
-    {{ $dimensionsFound = true }}
+{{/* Look for image_dimensions.yaml in the current page bundle */}}
+{{ $dimensionsResource := .Page.Resources.GetMatch "image_dimensions.yaml" }}
+{{ with $dimensionsResource }}
+  {{ $dimensionsData := . | transform.Unmarshal }}
+  {{ with $dimensionsData.dimensions }}
+    {{ with (index . $src) }}
+      {{ $width = .width }}
+      {{ $height = .height }}
+      {{ $dimensionsFound = true }}
+    {{ end }}
   {{ end }}
 {{ end }}
 

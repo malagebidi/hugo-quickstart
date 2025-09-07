@@ -5,7 +5,9 @@ on:
     branches:
       - main
     paths:
-      - 'content/posts/**'
+      - 'content/**/*.jpg'
+      - 'content/**/*.png' 
+      - 'content/**/*.jpeg'
 jobs:
   build:
     name: Convert Images Job

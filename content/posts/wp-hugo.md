@@ -1,6 +1,6 @@
 ---
 title: "WordPress to Hugo"
-slug: "wp-hugo"
+slug: "wp-hugo.html"
 date: 2025-09-07T06:05:00
 draft: false
 ---

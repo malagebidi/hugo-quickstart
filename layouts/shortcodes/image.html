@@ -1,18 +1,16 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Version: Definitive (Solves Race Condition)
-  Finds and uses the .avif file if it exists, otherwise falls back to the original source image.
+  Version: Fixed (Adds Resource Type Checking)
+  Finds and uses the .avif file if it exists and is an image, otherwise falls back to the original source image.
 */}}
-
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
 {{ $class := .Get "class" }}
-
 {{ $avifPath := printf "%s.avif" $src }}
 {{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
-{{ if $avifResource }}
-  {{/* Case A: The .avif file was found (second build after Action completes) */}}
+{{ if and $avifResource (eq $avifResource.ResourceType "image") }}
+  {{/* Case A: The .avif file was found and is an image resource */}}
   <img 
     src="{{ $avifResource.RelPermalink }}" 
     alt="{{ $alt }}" 
@@ -21,16 +19,23 @@
     height="{{ $avifResource.Height }}" 
     loading="lazy">
 {{ else }}
-  {{/* Case B: The .avif file was NOT found (first build), so find the original source image */}}
+  {{/* Case B: The .avif file was NOT found or is not an image, so find the original source image */}}
   {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
   {{ with $originalResource }}
-    <img 
-      src="{{ .RelPermalink }}" 
-      alt="{{ $alt }}" 
-      class="{{ $class }}" 
-      width="{{ .Width }}" 
-      height="{{ .Height }}" 
-      loading="lazy">
+    {{ if eq .ResourceType "image" }}
+      <img 
+        src="{{ .RelPermalink }}" 
+        alt="{{ $alt }}" 
+        class="{{ $class }}" 
+        width="{{ .Width }}" 
+        height="{{ .Height }}" 
+        loading="lazy">
+    {{ else }}
+      {{/* Found resource but it's not an image */}}
+      <p style="color: red;">
+        <strong>Image Error:</strong> Resource '{{ $src }}' exists but is not an image (type: {{ .ResourceType }}).
+      </p>
+    {{ end }}
   {{ else }}
     {{/* Case C: Neither the .avif nor an original source image was found */}}
     <p style="color: red;">

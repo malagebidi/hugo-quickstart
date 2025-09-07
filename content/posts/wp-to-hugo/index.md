@@ -6,3 +6,5 @@ draft: false
 ---
 
 为什么从WordPress转到Hugo呢？我还记得至少15年前
+
+![ComboCuts](ComboCuts.avif)

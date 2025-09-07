@@ -1,7 +1,7 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Version: Fixed (Adds Resource Type Checking)
-  Finds and uses the .avif file if it exists and is an image, otherwise falls back to the original source image.
+  Version: Maximum Safety (Try-Catch approach with error handling)
+  Finds and uses the .avif file if it exists, otherwise falls back to the original source image.
 */}}
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
@@ -9,39 +9,72 @@
 {{ $avifPath := printf "%s.avif" $src }}
 {{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
-{{ if and $avifResource (eq $avifResource.ResourceType "image") }}
-  {{/* Case A: The .avif file was found and is an image resource */}}
-  <img 
-    src="{{ $avifResource.RelPermalink }}" 
-    alt="{{ $alt }}" 
-    class="{{ $class }}" 
-    width="{{ $avifResource.Width }}" 
-    height="{{ $avifResource.Height }}" 
-    loading="lazy">
+{{ if $avifResource }}
+  {{/* Case A: The .avif file was found - try to use it safely */}}
+  {{ $canUseAvif := true }}
+  {{ $avifWidth := "" }}
+  {{ $avifHeight := "" }}
+  
+  {{/* Try to get width and height, catch any errors */}}
+  {{ with $avifResource }}
+    {{ if and (in (printf "%T" .) "Resource") (not (in (printf "%T" .) "GenericResource")) }}
+      {{ $avifWidth = .Width }}
+      {{ $avifHeight = .Height }}
+    {{ else }}
+      {{ $canUseAvif = false }}
+    {{ end }}
+  {{ end }}
+  
+  {{ if $canUseAvif }}
+    <img 
+      src="{{ $avifResource.RelPermalink }}" 
+      alt="{{ $alt }}" 
+      class="{{ $class }}" 
+      {{ with $avifWidth }}width="{{ . }}"{{ end }}
+      {{ with $avifHeight }}height="{{ . }}"{{ end }}
+      loading="lazy">
+  {{ else }}
+    {{/* AVIF exists but can't be used as image, fall back to original */}}
+    {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
+    {{ with $originalResource }}
+      {{ $originalWidth := "" }}
+      {{ $originalHeight := "" }}
+      {{ if and (in (printf "%T" .) "Resource") (not (in (printf "%T" .) "GenericResource")) }}
+        {{ $originalWidth = .Width }}
+        {{ $originalHeight = .Height }}
+      {{ end }}
+      
+      <img 
+        src="{{ .RelPermalink }}" 
+        alt="{{ $alt }}" 
+        class="{{ $class }}" 
+        {{ with $originalWidth }}width="{{ . }}"{{ end }}
+        {{ with $originalHeight }}height="{{ . }}"{{ end }}
+        loading="lazy">
+    {{ else }}
+      <p style="color: red;">
+        <strong>Image Error:</strong> Could not find any valid image resource matching '{{ $src }}' in this Page Bundle.
+      </p>
+    {{ end }}
+  {{ end }}
 {{ else }}
   {{/* Case B: The .avif file was NOT found, so find the original source image */}}
   {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
   {{ with $originalResource }}
-    {{ $hasOriginalImageMethods := false }}
-    {{ if reflect.IsMethod . "Width" }}
-      {{ $hasOriginalImageMethods = true }}
+    {{ $originalWidth := "" }}
+    {{ $originalHeight := "" }}
+    {{ if and (in (printf "%T" .) "Resource") (not (in (printf "%T" .) "GenericResource")) }}
+      {{ $originalWidth = .Width }}
+      {{ $originalHeight = .Height }}
     {{ end }}
     
-    {{ if $hasOriginalImageMethods }}
-      <img 
-        src="{{ .RelPermalink }}" 
-        alt="{{ $alt }}" 
-        class="{{ $class }}" 
-        width="{{ .Width }}" 
-        height="{{ .Height }}" 
-        loading="lazy">
-    {{ else }}
-      <img 
-        src="{{ .RelPermalink }}" 
-        alt="{{ $alt }}" 
-        class="{{ $class }}" 
-        loading="lazy">
-    {{ end }}
+    <img 
+      src="{{ .RelPermalink }}" 
+      alt="{{ $alt }}" 
+      class="{{ $class }}" 
+      {{ with $originalWidth }}width="{{ . }}"{{ end }}
+      {{ with $originalHeight }}height="{{ . }}"{{ end }}
+      loading="lazy">
   {{ else }}
     {{/* Case C: Neither the .avif nor an original source image was found */}}
     <p style="color: red;">

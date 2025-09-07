@@ -21,16 +21,12 @@
     {{/* Try to detect if Width method exists */}}
     {{ $hasWidthMethod := false }}
     {{ $widthError := "" }}
-    {{ $testWidth := "" }}
     
-    {{/* This is a safe way to test if Width method works */}}
-    {{ range seq 1 1 }}
-      {{ $testWidth = $avifResource.Width | default "NO_WIDTH" }}
-      {{ if eq $testWidth "NO_WIDTH" }}
-        {{ $widthError = "Width method returned no value" }}
-      {{ else }}
-        {{ $hasWidthMethod = true }}
-      {{ end }}
+    {{/* Simple test - if this is an image resource, it should have ResourceType "image" */}}
+    {{ if eq $avifResource.ResourceType "image" }}
+      {{ $hasWidthMethod = true }}
+    {{ else }}
+      {{ $widthError = "Resource type is not 'image'" }}
     {{ end }}
     
     {{ if $hasWidthMethod }}

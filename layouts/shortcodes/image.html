@@ -1,43 +1,41 @@
 {{/*
-  File: layouts/shortcodes/image.html
-  Version: Final (with SVG support)
-  Description: Handles Page Bundles and global assets, and now correctly
-               displays SVG files without trying to process them.
+  文件: layouts/shortcodes/image.html
+  版本: 终极版 (解决 Race Condition)
+  功能: 优先寻找并使用 .avif 文件。如果找不到（在第一次构建时），
+         则优雅地回退，寻找并使用页面包中的原始图片 (jpg/png/webp)。
 */}}
 
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
 {{ $class := .Get "class" }}
 
-{{ $image := "" }}
+{{ $avifPath := printf "%s.avif" $src }}
+{{ $avifResource := .Page.Resources.GetMatch $avifPath }}
 
-{{/* 优先：在当前页面的资源包里寻找图片 */}}
-{{ with .Page.Resources.GetMatch $src }}
-  {{ $image = . }}
-{{/* 备用：如果上面没找到，就去全局的 /assets 目录里寻找 */}}
+{{ if $avifResource }}
+  {{/* 方案A: 找到了 AVIF (第二次构建) */}}
+  <img 
+    src="{{ $avifResource.RelPermalink }}" 
+    alt="{{ $alt }}" 
+    class="{{ $class }}" 
+    width="{{ $avifResource.Width }}" 
+    height="{{ $avifResource.Height }}" 
+    loading="lazy">
 {{ else }}
-  {{ $srcPath := printf "images/%s" $src }}
-  {{ $image = resources.Get $srcPath }}
-{{ end }}
-
-
-{{ if $image }}
-  {{/* --- 新增：检查文件类型 --- */}}
-  {{ if eq $image.MediaType.SubType "svg" }}
-    {{/* 如果是 SVG, 直接输出 <img> 标签，不进行任何处理 */}}
-    <img src="{{ $image.RelPermalink }}" alt="{{ $alt }}" class="{{ $class }}" loading="lazy">
+  {{/* 方案B: 没找到 AVIF (第一次构建)，尝试寻找原图 */}}
+  {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
+  {{ with $originalResource }}
+    <img 
+      src="{{ .RelPermalink }}" 
+      alt="{{ $alt }}" 
+      class="{{ $class }}" 
+      width="{{ .Width }}" 
+      height="{{ .Height }}" 
+      loading="lazy">
   {{ else }}
-    {{/* 如果是其他图片 (JPG, PNG, etc.), 执行我们之前的处理流程 */}}
-    {{ $avif := $image.Process "avif q50" }}
-    {{ $webp := $image.Process "webp q75" }}
-    {{ $originalFormat := $image.Process (printf "%s q85" $image.MediaType.SubType) }}
-    
-    <picture>
-      <source srcset="{{ $avif.RelPermalink }}" type="image/avif">
-      <source srcset="{{ $webp.RelPermalink }}" type="image/webp">
-      <img src="{{ $originalFormat.RelPermalink }}" alt="{{ $alt }}" class="{{ $class }}" width="{{ $image.Width }}" height="{{ $image.Height }}" loading="lazy">
-    </picture>
+    {{/* 方案C: 连原图都找不到，才真正报错 */}}
+    <p style="color: red;">
+      <strong>图片错误:</strong> 在此文章包中找不到任何名为 '{{ $src }}' 的图片资源。
+    </p>
   {{ end }}
-{{ else }}
-  <p style="color: red;">图片错误: 未在页面包或 'assets/images/' 目录中找到 '{{ $src }}'</p>
 {{ end }}

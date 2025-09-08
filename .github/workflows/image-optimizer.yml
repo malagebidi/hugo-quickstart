@@ -88,14 +88,12 @@ jobs:
 
             echo "    - Downloading AVIF for $original_path -> $avif_path"
             
-            # <<< FIX START >>>
-            # 修复：在下载前短暂等待，给 CDN 传播留出时间
-            sleep 3
-            # 修复：为 curl 添加重试逻辑，使其在遇到临时网络问题时更稳健
-            # --retry 3: 最多重试3次
-            # --retry-delay 5: 每次重试间隔5秒
-            curl -s --retry 3 --retry-delay 5 -o "$avif_path" "$avif_url"
-            # <<< FIX END >>>
+            # <<< FINAL FIX START >>>
+            # 最终修复：强制 curl 使用可靠的公共 DNS 服务器（Cloudflare 和 Google）来解析主机名，
+            # 绕过 Runner 环境中可能存在问题的默认 DNS 解析器。
+            # 同时保留重试机制以应对临时的网络抖动。
+            curl --dns-servers 1.1.1.1,8.8.8.8 -s --retry 3 --retry-delay 5 -o "$avif_path" "$avif_url"
+            # <<< FINAL FIX END >>>
 
             if [ -f "$original_path" ]; then
               dimensions=$(identify -format "%wx%h" "$original_path")

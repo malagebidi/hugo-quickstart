@@ -1,6 +1,6 @@
-# 文件路径: .github/workflows/image-optimizer.yml
+# FILE: .github/workflows/image-optimizer.yml (DEBUGGING VERSION)
 
-name: '🤖 Optimize Bundle Images with ShortPixel'
+name: '🤖 DEBUG - Optimize Bundle Images'
 
 on:
   push:
@@ -10,52 +10,75 @@ on:
       - 'content/**/*.jpg'
       - 'content/**/*.png'
       - 'content/**/*.jpeg'
-  
-  schedule:
-    - cron: '0 0 * * *'
-    
   workflow_dispatch:
 
 jobs:
   build:
     name: Convert Images Job
     runs-on: ubuntu-latest
-    
     permissions:
       contents: write
-      
     if: github.event.pusher.name != 'GitHub Actions Bot' && github.event.pusher.name != 'github-actions[bot]'
 
     steps:
       - name: '⬇️ Checkout Code'
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: '🔧 Install Dependencies'
-        run: sudo apt-get update && sudo apt-get install -y imagemagick jq dnsutils
-
-      - name: '🔄 Find Images to Process'
-        id: find_files
+      
+      # ======================================================================
+      # === 🕵️ NEW DEBUGGING STEP - "THE BLACK BOX" ===
+      # ======================================================================
+      - name: '🕵️ Run Diagnostics and Trace File Logic'
+        id: diagnostics
         run: |
-          echo "🔍 Finding images that need conversion..."
+          echo "--- 1. Current Working Directory & Git Status ---"
+          pwd
+          git status
+          
+          echo ""
+          echo "--- 2. Recursive File Listing in 'content/' ---"
+          # This is the most important command. It will show us EXACTLY what files exist.
+          ls -R content/
+          
+          echo ""
+          echo "--- 3. Running the 'find' command standalone ---"
+          # Let's see what the find command returns on its own.
+          find content -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \)
+          
+          echo ""
+          echo "--- 4. Tracing the file checking logic step-by-step ---"
           UNCONVERTED_FILES=""
           find content -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read -r f; do
-            [ ! -f "${f%.*}.avif" ] && UNCONVERTED_FILES="$UNCONVERTED_FILES$f "
+            avif_path="${f%.*}.avif"
+            echo "   - Checking original file: '$f'"
+            echo "     > Corresponding AVIF path should be: '$avif_path'"
+            if [ -f "$avif_path" ]; then
+              echo "     > RESULT: SKIPPED. Reason: Found existing AVIF file at '$avif_path'."
+            else
+              echo "     > RESULT: FOUND! Reason: No AVIF file found. Adding to process list."
+              UNCONVERTED_FILES="$UNCONVERTED_FILES$f "
+            fi
           done
+          
+          echo ""
+          echo "--- S. Final Result ---"
           if [ -n "$UNCONVERTED_FILES" ]; then
-            echo "  - Found $(echo $UNCONVERTED_FILES | wc -w) unconverted images."
+            echo "✅ UNCONVERTED_FILES variable is NOT empty. The files found are:"
+            echo "$UNCONVERTED_FILES"
             echo "files_to_process=${UNCONVERTED_FILES}" >> $GITHUB_OUTPUT
           else
-            echo "✅ No images to process."
+            echo "❌ UNCONVERTED_FILES variable is EMPTY. No files will be processed."
             echo "files_to_process=" >> $GITHUB_OUTPUT
           fi
+
+      # The original 'Find Images' step is now replaced by the diagnostics step above.
+      # The rest of the workflow remains the same, but will use the output from diagnostics.
           
       - name: '🚀 Process Images with ShortPixel and Smart Polling'
-        if: steps.find_files.outputs.files_to_process != ''
+        if: steps.diagnostics.outputs.files_to_process != ''
+        # ... (The rest of the file is identical to the previous version)
         env:
           SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
-          FILES_TO_PROCESS: ${{ steps.find_files.outputs.files_to_process }}
+          FILES_TO_PROCESS: ${{ steps.diagnostics.outputs.files_to_process }}
           MAX_ATTEMPTS: 5
           POLL_INTERVAL_SECONDS: 60
         run: |
@@ -111,15 +134,11 @@ jobs:
                       rm "$original_path"
                   else
                       echo "    -   ❌ Download failed for '$original_path'. Will retry."
-                      # <<< FIX START >>>
                       NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq --arg url "$original_url" '. + [$url]')
-                      # <<< FIX END >>>
                   fi
               elif [ "$status_code" == "1" ]; then
                   echo "    - ⏳ IN PROGRESS ($status_code): '$original_path' still processing. Will retry."
-                  # <<< FIX START >>>
                   NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq --arg url "$original_url" '. + [$url]')
-                  # <<< FIX END >>>
               else
                   echo "    - ❌ ERROR ($status_code): Could not process '$original_path'. Reason: '$status_message'."
               fi
@@ -139,8 +158,8 @@ jobs:
           fi
 
       - name: '🚀 Commit and Push Changes'
-        # 只有在处理和删除了原始文件后, git status 才会检测到变化。所以这个判断可以简化
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'build(media): Convert bundle images to AVIF'
           commit_author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
+

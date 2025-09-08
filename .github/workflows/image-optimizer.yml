@@ -1,7 +1,5 @@
 # 文件路径: .github/workflows/image-optimizer.yml
-
 name: '🤖 Optimize Bundle Images with ShortPixel'
-
 on:
   push:
     branches:
@@ -16,7 +14,6 @@ on:
     - cron: '0 0 * * *'
     
   workflow_dispatch:
-
 jobs:
   build:
     name: Convert Images Job
@@ -26,28 +23,24 @@ jobs:
       contents: write
       
     if: github.event.pusher.name != 'GitHub Actions Bot' && github.event.pusher.name != 'github-actions[bot]'
-
     steps:
       - name: '⬇️ Checkout Code'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: '🔄 Pull Latest Changes'
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
           git pull origin main || true
-
       - name: '🔧 Install Dependencies'
         run: sudo apt-get update && sudo apt-get install -y imagemagick jq
-
       - name: '🔄 Find Images to Process'
         id: find_files
         run: |
           echo "🔍 Finding images that need conversion..."
           FILE_LIST=$(
-            find content -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read -r f; do
+            find content -type f $ -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" $ | while read -r f; do
               # 检查是否存在任何对应的 AVIF 文件
               base_path="${f%.*}"
               has_avif=false
@@ -82,7 +75,6 @@ jobs:
             echo "✅ No images to process."
             echo "files_to_process=" >> $GITHUB_OUTPUT
           fi
-
       - name: '🧹 Clean up orphaned dimensions'
         run: |
           echo "🧹 Cleaning up orphaned dimension entries..."
@@ -164,76 +156,87 @@ jobs:
             for task in "${tasks[@]}"; do
               IFS=':' read -r size_suffix url target_w target_h <<< "$task"
               
-              echo "    Processing $size_suffix..."
+              echo "    Processing $size_suffix (target: ${target_w}x${target_h})..."
               
               # 重试机制
               success=false
               for attempt in $(seq 1 $MAX_ATTEMPTS); do
                 echo "      Attempt $attempt/$MAX_ATTEMPTS"
                 
-                # 构建API payload，根据不同类型使用不同参数
+                # 构建API payload，使用字符串替换方式避免jq参数问题
                 if [ "$size_suffix" = "original" ]; then
-                  JSON_PAYLOAD=$(jq -n \
-                    --arg key "$SHORTPIXEL_KEY" \
-                    --arg url "$url" \
-                    '{
-                      key: $key,
-                      plugin_version: "GHA45",
-                      lossy: 2,
-                      wait: 20,
-                      urllist: [$url],
-                      paramlist: [{
-                        resize: 0,
-                        convertto: "avif"
-                      }]
-                    }')
+                  JSON_PAYLOAD='{
+                    "key": "'$SHORTPIXEL_KEY'",
+                    "plugin_version": "GHA45",
+                    "lossy": 2,
+                    "wait": 20,
+                    "urllist": ["'$url'"],
+                    "paramlist": [{
+                      "resize": 0,
+                      "convertto": "avif"
+                    }]
+                  }'
                   output_file="${base_path}.avif"
                 else
-                  JSON_PAYLOAD=$(jq -n \
-                    --arg key "$SHORTPIXEL_KEY" \
-                    --arg url "$url" \
-                    --argjson target_w "$target_w" \
-                    --argjson target_h "$target_h" \
-                    '{
-                      key: $key,
-                      plugin_version: "GHA45",
-                      lossy: 2,
-                      wait: 20,
-                      urllist: [$url],
-                      paramlist: [{
-                        resize: 3,
-                        resize_width: $target_w,
-                        resize_height: $target_h,
-                        convertto: "avif"
-                      }]
-                    }')
+                  # 确保变量不为空且为数字
+                  if [[ ! "$target_w" =~ ^[0-9]+$ ]] || [[ ! "$target_h" =~ ^[0-9]+$ ]]; then
+                    echo "      ❌ Invalid dimensions: ${target_w}x${target_h}"
+                    break
+                  fi
+                  
+                  JSON_PAYLOAD='{
+                    "key": "'$SHORTPIXEL_KEY'",
+                    "plugin_version": "GHA45",
+                    "lossy": 2,
+                    "wait": 20,
+                    "urllist": ["'$url'"],
+                    "paramlist": [{
+                      "resize": 3,
+                      "resize_width": '$target_w',
+                      "resize_height": '$target_h',
+                      "convertto": "avif"
+                    }]
+                  }'
                   output_file="${base_path}_${size_suffix}.avif"
+                fi
+                
+                # 验证 JSON 格式
+                if ! echo "$JSON_PAYLOAD" | jq empty 2>/dev/null; then
+                  echo "      ❌ Invalid JSON payload"
+                  echo "      Payload: $JSON_PAYLOAD"
+                  break
                 fi
                 
                 # 调用 API
                 API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
                 
                 # 检查响应
-                status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
-                avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
-                
-                if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
-                  if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
-                    echo "      ✅ Successfully generated: $(basename "$output_file")"
-                    success=true
-                    
-                    # 记录原图处理状态
-                    if [ "$size_suffix" = "original" ]; then
-                      processed_originals["$file_path"]=1
-                    fi
-                    break
-                  else
-                    echo "      ❌ Failed to download from: $avif_url"
-                  fi
+                if [ -z "$API_RESPONSE" ]; then
+                  echo "      ❌ Empty API response"
+                elif ! echo "$API_RESPONSE" | jq empty 2>/dev/null; then
+                  echo "      ❌ Invalid JSON response: $API_RESPONSE"
                 else
-                  echo "      ❌ API failed with status: $status_code"
-                  if [ -n "$API_RESPONSE" ]; then
-                    echo "      Response: $(echo "$API_RESPONSE" | jq -c '.[0].Status // empty')"
+                  status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
+                  avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
+                  
+                  if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
+                    if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
+                      echo "      ✅ Successfully generated: $(basename "$output_file")"
+                      success=true
+                      
+                      # 记录原图处理状态
+                      if [ "$size_suffix" = "original" ]; then
+                        processed_originals["$file_path"]=1
+                      fi
+                      break
+                    else
+                      echo "      ❌ Failed to download from: $avif_url"
+                    fi
+                  else
+                    echo "      ❌ API failed with status: $status_code"
+                    if [ -n "$API_RESPONSE" ]; then
+                      echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"')"
+                    fi
                   fi
                 fi
                 
@@ -286,7 +289,6 @@ jobs:
               echo "  - Removed: $(basename "$original_file")"
             fi
           done
-
       - name: '🚀 Commit and Push Changes'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:

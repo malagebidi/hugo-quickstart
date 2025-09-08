@@ -10,6 +10,7 @@ on:
       - 'content/**/*.jpg'
       - 'content/**/*.png'
       - 'content/**/*.jpeg'
+      - 'content/**/*.avif'  # 添加对 AVIF 文件变更的监听
   
   schedule:
     - cron: '0 0 * * *'

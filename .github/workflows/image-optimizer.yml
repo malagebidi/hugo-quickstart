@@ -28,11 +28,13 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
-      - name: '🔧 Install Dependencies (ImageMagick & jq)'
+      # 步骤 2: 安装必要的工具 (包括 dnsutils, 它提供了 dig 命令)
+      - name: '🔧 Install Dependencies (ImageMagick, jq, dnsutils)'
         run: |
           sudo apt-get update
-          sudo apt-get install -y imagemagick jq
+          sudo apt-get install -y imagemagick jq dnsutils
       
+      # 步骤 3: 核心处理逻辑
       - name: '🔄 Find, Process, and Replace Images'
         env:
           SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
@@ -88,12 +90,26 @@ jobs:
 
             echo "    - Downloading AVIF for $original_path -> $avif_path"
             
-            # <<< FINAL FIX START >>>
-            # 最终修复：强制 curl 使用可靠的公共 DNS 服务器（Cloudflare 和 Google）来解析主机名，
-            # 绕过 Runner 环境中可能存在问题的默认 DNS 解析器。
-            # 同时保留重试机制以应对临时的网络抖动。
-            curl --dns-servers 1.1.1.1,8.8.8.8 -s --retry 3 --retry-delay 5 -o "$avif_path" "$avif_url"
-            # <<< FINAL FIX END >>>
+            # <<< FINAL ROBUST FIX START >>>
+            # 最终稳健修复方案: 由于 curl 版本过旧, 不支持 --dns-servers, 我们采用 --resolve 方案
+            
+            # 1. 从下载 URL 中提取主机名 (e.g., s-sp-15.shortpixel.ai)
+            url_hostname=$(echo "$avif_url" | awk -F/ '{print $3}')
+            
+            # 2. 使用 dig 向可靠的 DNS (1.1.1.1) 查询该主机的 IP 地址
+            echo "    - Resolving host ${url_hostname} via 1.1.1.1..."
+            ip_address=$(dig @1.1.1.1 "$url_hostname" +short | head -n 1)
+
+            if [ -z "$ip_address" ]; then
+              echo "    - ❌ FAILED to resolve IP for ${url_hostname}. Skipping download."
+              continue
+            fi
+            echo "    - Resolved ${url_hostname} to ${ip_address}"
+
+            # 3. 使用 curl 的 --resolve 选项, 强制将 主机:端口 解析到我们查到的 IP
+            #    同时保留重试机制以应对网络抖动
+            curl -s --retry 3 --retry-delay 5 --resolve "${url_hostname}:443:${ip_address}" -o "$avif_path" "$avif_url"
+            # <<< FINAL ROBUST FIX END >>>
 
             if [ -f "$original_path" ]; then
               dimensions=$(identify -format "%wx%h" "$original_path")

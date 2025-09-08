@@ -94,7 +94,7 @@ jobs:
           SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
           FILES_TO_PROCESS: ${{ steps.find_files.outputs.files_to_process }}
           MAX_ATTEMPTS: 3
-          POLL_INTERVAL_SECONDS: 20
+          POLL_INTERVAL_SECONDS: 30
         run: |
           # 用于跟踪已处理的原始文件
           declare -A processed_originals

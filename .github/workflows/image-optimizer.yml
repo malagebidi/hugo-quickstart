@@ -109,16 +109,22 @@ jobs:
           declare -a url_list
           declare -a param_list
           declare -a file_mapping
+          declare -A file_dimensions
+          
+          # 首先获取所有文件的尺寸信息
+          for file_path in $FILES_TO_PROCESS; do
+            dimensions=$(identify -format "%wx%h" "$file_path")
+            file_dimensions["$file_path"]="$dimensions"
+            echo "📏 Processing $file_path ($dimensions)"
+          done
           
           for file_path in $FILES_TO_PROCESS; do
             base_url="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/$file_path"
             
-            # 获取图片尺寸
-            dimensions=$(identify -format "%wx%h" "$file_path")
+            # 从缓存的尺寸信息获取
+            dimensions="${file_dimensions[$file_path]}"
             width=$(echo "$dimensions" | cut -d'x' -f1)
             height=$(echo "$dimensions" | cut -d'x' -f2)
-            
-            echo "📏 Processing $file_path (${width}x${height})"
             
             # 定义需要生成的尺寸
             sizes="480 960 1200 1920 2560 3840"
@@ -163,6 +169,9 @@ jobs:
           # 将数组转换为 JSON
           url_json=$(printf '%s\n' "${url_list[@]}" | jq -R . | jq -s .)
           param_json=$(printf '%s\n' "${param_list[@]}" | jq -s .)
+          
+          # 用于跟踪已处理的原始文件
+          declare -A processed_originals
           
           # 分批处理（ShortPixel API 限制每次最多 100 个 URL）
           batch_size=50
@@ -228,13 +237,13 @@ jobs:
                       
                       curl -fsS --retry 3 -o "$avif_path" "$avif_url"
                       
-                      # 只有原图需要记录尺寸和删除源文件
+                      # 记录已处理的原图（但先不删除）
                       if [ "$size_suffix" = "original" ] && [ -s "$avif_path" ]; then
-                        dimensions=$(identify -format "%wx%h" "$original_file_path")
+                        dimensions="${file_dimensions[$original_file_path]}"
                         yaml_file="$dir_path/.image_dimensions.yaml"
                         touch "$yaml_file"
                         grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
-                        rm "$original_file_path"
+                        processed_originals["$original_file_path"]=1
                       fi
                     fi
                     break
@@ -255,6 +264,15 @@ jobs:
                 sleep $POLL_INTERVAL_SECONDS
               fi
             done
+          done
+          
+          # 处理完所有批次后，删除成功转换的原始文件
+          echo -e "\n🗑️ Cleaning up successfully processed original files..."
+          for original_file in "${!processed_originals[@]}"; do
+            if [ -f "$original_file" ]; then
+              rm "$original_file"
+              echo "  - Removed: $original_file"
+            fi
           done
 
       - name: '🚀 Commit and Push Changes'

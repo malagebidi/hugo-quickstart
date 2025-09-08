@@ -77,27 +77,24 @@ jobs:
             
             original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
             
-            if [ -z "$original_path" ]; then
-                echo "⚠️ Could not extract path for $original_url. Skipping."
-                continue
+            # <<< ROBUSTNESS FIX START >>>
+            # 最终修复: 检查从API返回的AVIF URL是否有效。
+            # 如果图片处理时间超过30秒, API可能会返回 "null"。我们必须捕获这种情况。
+            if [ "$avif_url" == "null" ] || [ -z "$avif_url" ]; then
+                echo "    - ⚠️ WARNING: AVIF URL not available for '$original_path'. The conversion might have timed out. Skipping this file."
+                continue # 跳过当前循环, 处理下一个文件
             fi
-            
+            # <<< ROBUSTNESS FIX END >>>
+
             dir_path=$(dirname "$original_path")
             base_name=$(basename "$original_path" | sed 's/\.[^.]*$//')
             avif_path="$dir_path/$base_name.avif"
 
             echo "    - Downloading AVIF for $original_path -> $avif_path"
             
-            # <<< FINAL ROBUST FIX START >>>
-            # 最终稳健修复方案: 使用纯 shell 参数扩展来提取主机名, 这是最可靠的方法
-
-            # 1. 从下载 URL 中提取主机名 (e.g., s-sp-15.shortpixel.ai)
-            #    旧的 awk 方法在某些环境下会失败, 导致主机名为空。
-            #    新的方法使用 shell 内置功能, 更加稳健。
-            temp_url="${avif_url#*//}"   # 移除 "https://" 或 "http://", 结果是: s-sp-xx.shortpixel.ai/client/...
-            url_hostname="${temp_url%%/*}" # 移除第一个 "/" 之后的所有内容, 结果是: s-sp-xx.shortpixel.ai
+            temp_url="${avif_url#*//}"
+            url_hostname="${temp_url%%/*}"
             
-            # 2. 使用 dig 向可靠的 DNS (1.1.1.1) 查询该主机的 IP 地址
             echo "    - Resolving host ${url_hostname} via 1.1.1.1..."
             ip_address=$(dig @1.1.1.1 "$url_hostname" +short | head -n 1)
 
@@ -107,27 +104,26 @@ jobs:
             fi
             echo "    - Resolved ${url_hostname} to ${ip_address}"
 
-            # 3. 使用 curl 的 --resolve 选项, 强制将 主机:端口 解析到我们查到的 IP
-            curl -s --retry 3 --retry-delay 5 --resolve "${url_hostname}:443:${ip_address}" -o "$avif_path" "$avif_url"
-            # <<< FINAL ROBUST FIX END >>>
-
-            if [ -f "$original_path" ]; then
-              dimensions=$(identify -format "%wx%h" "$original_path")
-              yaml_file="$dir_path/.image_dimensions.yaml"
-              
-              touch "$yaml_file"
-              
-              if grep -q "${base_name}:" "$yaml_file"; then
-                sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
-              else
-                echo "${base_name}: ${dimensions}" >> "$yaml_file"
-              fi
-              echo "    - Saved dimensions (${dimensions}) to ${yaml_file}"
-
-              echo "    - Removing original file: $original_path"
-              rm "$original_path"
+            curl -fsS --retry 3 --retry-delay 5 --resolve "${url_hostname}:443:${ip_address}" -o "$avif_path" "$avif_url"
+            
+            if [ -f "$avif_path" ] && [ -s "$avif_path" ]; then
+                if [ -f "$original_path" ]; then
+                    dimensions=$(identify -format "%wx%h" "$original_path")
+                    yaml_file="$dir_path/.image_dimensions.yaml"
+                    touch "$yaml_file"
+                    if grep -q "${base_name}:" "$yaml_file"; then
+                        sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
+                    else
+                        echo "${base_name}: ${dimensions}" >> "$yaml_file"
+                    fi
+                    echo "    - Saved dimensions (${dimensions}) to ${yaml_file}"
+                    echo "    - Removing original file: $original_path"
+                    rm "$original_path"
+                else
+                    echo "    - Warning: Original file $original_path not found locally. Cannot get dimensions or remove."
+                fi
             else
-              echo "    - Warning: Original file $original_path not found locally. Cannot get dimensions or remove."
+                echo "    - ❌ FAILED to download or downloaded file is empty. Skipping file removal for $original_path"
             fi
           done
 

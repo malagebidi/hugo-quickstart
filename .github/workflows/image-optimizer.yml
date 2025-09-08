@@ -52,8 +52,29 @@ jobs:
             echo "✅ No images to process."
             echo "files_to_process=" >> $GITHUB_OUTPUT
           fi
+
+      - name: '🧹 Clean up orphaned dimensions'
+        run: |
+          echo "🧹 Cleaning up orphaned dimension entries..."
+          find content -name ".image_dimensions.yaml" | while read -r yaml_file; do
+            if [ -f "$yaml_file" ]; then
+              dir_path=$(dirname "$yaml_file")
+              temp_file=$(mktemp)
+              while IFS=': ' read -r base_name dimensions; do
+                if [ -f "$dir_path/$base_name.avif" ]; then
+                  echo "$base_name: $dimensions" >> "$temp_file"
+                fi
+              done < "$yaml_file"
+              mv "$temp_file" "$yaml_file"
+              
+              # 如果文件为空则删除
+              if [ ! -s "$yaml_file" ]; then
+                rm "$yaml_file"
+              fi
+            fi
+          done
           
-      - name: '🚀 Process Images with ShortPixel and Smart Polling'
+      - name: '🚀 Process Images with ShortPixel'
         if: steps.find_files.outputs.files_to_process != ''
         env:
           SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
@@ -71,7 +92,6 @@ jobs:
 
             echo -e "\n-=================================-\n-   ATTEMPT ${attempt} / ${MAX_ATTEMPTS}\n-   Processing $(echo "$PENDING_URLS_STRING" | jq 'length') images...\n-=================================-\n"
 
-            # 修改 JSON 载荷，使用正确的 AVIF 转换参数
             JSON_PAYLOAD=$(jq -n --arg key "$SHORTPIXEL_KEY" --argjson urls "$PENDING_URLS_STRING" '{
               key: $key, 
               plugin_version: "GHA45", 
@@ -82,77 +102,53 @@ jobs:
             }')
 
             echo "📞 Calling ShortPixel API..."
-            echo "🔍 Debug - Request payload:"
-            echo "$JSON_PAYLOAD" | jq '.'
             
             API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
             
-            echo "✅ API call successful. Analyzing results..."
-            echo "🔍 Debug - Full API response:"
-            echo "$API_RESPONSE" | jq '.'
+            echo "✅ API call successful. Processing results..."
 
-            # 检查 API 响应中的所有可能的 URL 字段
-            echo "🔍 Debug - Checking available URL fields in response:"
-            echo "$API_RESPONSE" | jq -c '.[] | keys | map(select(test("URL"; "i")))'
-
-            # 1. Process and download all TRULY successful images with AVIF Lossy URLs
+            # Process successful conversions
             echo "$API_RESPONSE" | jq -c '.[] | select(.Status.Code == "2")' | while read -r item; do
               original_url=$(echo "$item" | jq -r .OriginalURL)
               original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
-              
-              # 专门查找 AVIFLossyURL，因为我们设置了 lossy: 2
               avif_url=$(echo "$item" | jq -r '.AVIFLossyURL // empty')
-              
-              echo "    - 🔍 Debug: AVIFLossyURL = '$avif_url'"
-              echo "    - 🔍 Debug: Original path = '$original_path'"
               
               if [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
                 dir_path=$(dirname "$original_path")
                 base_name=$(basename "$original_path" | sed 's/\.[^.]*$//')
                 avif_path="$dir_path/$base_name.avif"
-                echo "    - ✅ Found AVIF Lossy URL: $avif_url"
-                echo "    - 📥 Downloading AVIF from: $avif_url"
-                echo "    - 📁 Saving AVIF to: $avif_path"
+                echo "    - 📥 Downloading AVIF: $base_name"
                 
                 curl -fsS --retry 3 -o "$avif_path" "$avif_url"
                 if [ -s "$avif_path" ]; then
-                    # 检查下载的文件大小
-                    downloaded_size=$(stat -c%s "$avif_path" 2>/dev/null || stat -f%z "$avif_path" 2>/dev/null)
-                    expected_size=$(echo "$item" | jq -r '.AVIFLossySize')
-                    echo "    - 📊 Downloaded file size: $downloaded_size bytes"
-                    echo "    - 📊 Expected AVIF size: $expected_size bytes"
-                    
                     dimensions=$(identify -format "%wx%h" "$original_path")
                     yaml_file="$dir_path/.image_dimensions.yaml"
                     touch "$yaml_file"
                     grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
-                    echo "    - ✅ AVIF saved successfully, removing original file: $original_path"
+                    echo "    - ✅ AVIF saved successfully: $base_name"
                     rm "$original_path"
                 else
-                    echo "    - ❌ AVIF download failed for '$original_path'. It will be retried."
+                    echo "    - ❌ AVIF download failed: $base_name"
                 fi
               else
-                echo "    - ⚠️ AVIFLossyURL not available for '$original_path'"
-                echo "    - 🔍 Available fields: $(echo "$item" | jq -r 'keys | join(", ")')"
+                echo "    - ⚠️ AVIFLossyURL not available: $base_name"
               fi
             done
             
-            # 2. Log any other statuses for clarity.
+            # Log processing status
             echo "$API_RESPONSE" | jq -c '.[] | select(.Status.Code != "2")' | while read -r item; do
               status_code=$(echo "$item" | jq -r .Status.Code)
               status_message=$(echo "$item" | jq -r .Status.Message)
               original_path=$(echo "$item" | jq -r .OriginalURL | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
               if [ "$status_code" == "1" ]; then
-                echo "    - ⏳ IN PROGRESS: '$original_path' is still processing."
+                echo "    - ⏳ Processing: $(basename "$original_path")"
               else
-                echo "    - ❌ ERROR ($status_code): Could not process '$original_path'. Reason: '$status_message'."
+                echo "    - ❌ Error ($status_code): $(basename "$original_path") - $status_message"
               fi
             done
 
-            # 3. 重新定义待处理的 URL 列表
-            # 只有状态码不是 2 或者没有找到 AVIFLossyURL 的项目才需要重试
+            # Update pending URLs
             NEXT_PENDING_URLS_STRING=$(echo "$API_RESPONSE" | jq '[.[] | select(.Status.Code != "2" or (.AVIFLossyURL == null or .AVIFLossyURL == "NA" or .AVIFLossyURL == "")) | .OriginalURL]')
-            
             PENDING_URLS_STRING="$NEXT_PENDING_URLS_STRING"
 
             if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ] && [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
@@ -163,7 +159,7 @@ jobs:
 
           if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ]; then
               echo "⚠️ WARNING: After ${MAX_ATTEMPTS} attempts, the following images could not be processed:"
-              echo "$PENDING_URLS_STRING" | jq -r '.[]'
+              echo "$PENDING_URLS_STRING" | jq -r '.[]' | sed 's|.*/||'
           fi
 
       - name: '🚀 Commit and Push Changes'

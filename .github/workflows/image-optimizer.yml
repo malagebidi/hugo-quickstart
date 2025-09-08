@@ -37,14 +37,21 @@ jobs:
         id: find_files
         run: |
           echo "🔍 Finding images that need conversion..."
-          UNCONVERTED_FILES=""
-          # <<< FIX: Use Process Substitution to avoid subshell issues >>>
-          # This ensures the UNCONVERTED_FILES variable is modified in the current shell.
-          # The -print0 and -d '' combination robustly handles filenames with spaces.
-          while IFS= read -r -d '' f; do
-            [ ! -f "${f%.*}.avif" ] && UNCONVERTED_FILES="$UNCONVERTED_FILES$f "
-          done < <(find content -type f $ -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" $ -print0)
           
+          # <<< FIX: Use a robust "Group and Capture" pattern >>>
+          # This avoids both the subshell variable scope issue and the process substitution syntax error.
+          # The entire find | while block runs in a subshell, and its standard output is captured by the main shell.
+          FILE_LIST=$(
+            find content -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read -r f; do
+              if [ ! -f "${f%.*}.avif" ]; then
+                echo "$f" # Print the filename to stdout if it needs processing
+              fi
+            done
+          )
+          
+          # Convert the newline-separated list into a space-separated one
+          UNCONVERTED_FILES=$(echo $FILE_LIST)
+
           if [ -n "$UNCONVERTED_FILES" ]; then
             echo "  - Found $(echo $UNCONVERTED_FILES | wc -w) unconverted images."
             echo "files_to_process=${UNCONVERTED_FILES}" >> $GITHUB_OUTPUT
@@ -69,10 +76,10 @@ jobs:
                 break
             fi
 
-            echo -e "\n-=================================-\n-   ATTEMPT ${attempt} / ${MAX_ATTEMPTS}\n-   Processing $(echo "$PENDING_URL_STRING" | jq 'length') images...\n-=================================-\n"
+            echo -e "\n-=================================-\n-   ATTEMPT ${attempt} / ${MAX_ATTEMPTS}\n-   Processing $(echo "$PENDING_URLS_STRING" | jq 'length') images...\n-=================================-\n"
 
             JSON_PAYLOAD=$(jq -n --arg key "$SHORTPIXEL_KEY" --argjson urls "$PENDING_URLS_STRING" '{
-              key: $key, plugin_version: "GHA42", lossy: 2, wait: 30, convertto: "+avif", urllist: $urls
+              key: $key, plugin_version: "GHA43", lossy: 2, wait: 30, convertto: "+avif", urllist: $urls
             }')
 
             echo "📞 Calling ShortPixel API..."
@@ -111,4 +118,25 @@ jobs:
                   echo "    - ⏳ IN PROGRESS ($status_code): '$original_path' still processing. Will retry."
                   NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq --arg url "$original_url" '. + [$url]')
               else
-                  echo
+                  echo "    - ❌ ERROR ($status_code): Could not process '$original_path'. Reason: '$status_message'."
+              fi
+            done
+            
+            PENDING_URLS_STRING="$NEXT_PENDING_URLS_STRING"
+
+            if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ] && [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+                echo -e "\n\t... waiting ${POLL_INTERVAL_SECONDS} seconds before next attempt ...\n"
+                sleep $POLL_INTERVAL_SECONDS
+            fi
+          done
+
+          if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ]; then
+              echo "⚠️ WARNING: After ${MAX_ATTEMPTS} attempts, the following images are still not processed. They will be retried on the next scheduled run:"
+              echo "$PENDING_URLS_STRING" | jq -r '.[]'
+          fi
+
+      - name: '🚀 Commit and Push Changes'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'build(media): Convert bundle images to AVIF'
+          commit_author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>

@@ -253,6 +253,7 @@ jobs:
                 fi
               fi
             done
+          done
             
           # 统一处理所有成功转换的原始文件
           echo -e "\n🗑️ Cleaning up successfully processed original files..."

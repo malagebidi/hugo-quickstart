@@ -95,42 +95,44 @@ jobs:
             echo "🔍 Debug - Checking available URL fields in response:"
             echo "$API_RESPONSE" | jq -c '.[] | keys | map(select(test("URL"; "i")))'
 
-            # 1. Process and download all TRULY successful images.
-            # 尝试多个可能的 URL 字段名
+            # 1. Process and download all TRULY successful images with AVIF Lossy URLs
             echo "$API_RESPONSE" | jq -c '.[] | select(.Status.Code == "2")' | while read -r item; do
               original_url=$(echo "$item" | jq -r .OriginalURL)
               original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
               
-              # 尝试不同的 URL 字段名
-              avif_url=""
-              for field in "AVIFURL" "WebPURL" "LossyURL" "LosslessURL" "URL"; do
-                temp_url=$(echo "$item" | jq -r --arg field "$field" '.[$field] // empty')
-                if [ -n "$temp_url" ] && [ "$temp_url" != "null" ]; then
-                  avif_url="$temp_url"
-                  echo "    - 🔍 Found URL in field '$field': $avif_url"
-                  break
-                fi
-              done
+              # 专门查找 AVIFLossyURL，因为我们设置了 lossy: 2
+              avif_url=$(echo "$item" | jq -r '.AVIFLossyURL // empty')
               
-              if [ -n "$avif_url" ] && [ "$avif_url" != "null" ]; then
+              echo "    - 🔍 Debug: AVIFLossyURL = '$avif_url'"
+              echo "    - 🔍 Debug: Original path = '$original_path'"
+              
+              if [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
                 dir_path=$(dirname "$original_path")
                 base_name=$(basename "$original_path" | sed 's/\.[^.]*$//')
                 avif_path="$dir_path/$base_name.avif"
-                echo "    - ✅ SUCCESS: Downloading for $original_path"
+                echo "    - ✅ Found AVIF Lossy URL: $avif_url"
+                echo "    - 📥 Downloading AVIF from: $avif_url"
+                echo "    - 📁 Saving AVIF to: $avif_path"
                 
                 curl -fsS --retry 3 -o "$avif_path" "$avif_url"
                 if [ -s "$avif_path" ]; then
+                    # 检查下载的文件大小
+                    downloaded_size=$(stat -c%s "$avif_path" 2>/dev/null || stat -f%z "$avif_path" 2>/dev/null)
+                    expected_size=$(echo "$item" | jq -r '.AVIFLossySize')
+                    echo "    - 📊 Downloaded file size: $downloaded_size bytes"
+                    echo "    - 📊 Expected AVIF size: $expected_size bytes"
+                    
                     dimensions=$(identify -format "%wx%h" "$original_path")
                     yaml_file="$dir_path/.image_dimensions.yaml"
                     touch "$yaml_file"
                     grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
-                    echo "    -   Saved dimensions and removing original file: $original_path"
+                    echo "    - ✅ AVIF saved successfully, removing original file: $original_path"
                     rm "$original_path"
                 else
-                    echo "    -   ❌ Download failed for '$original_path'. It will be retried."
+                    echo "    - ❌ AVIF download failed for '$original_path'. It will be retried."
                 fi
               else
-                echo "    - ⚠️ SUCCESS BUT NO URL: '$original_path' returned Status 2 but no valid URL found."
+                echo "    - ⚠️ AVIFLossyURL not available for '$original_path'"
                 echo "    - 🔍 Available fields: $(echo "$item" | jq -r 'keys | join(", ")')"
               fi
             done

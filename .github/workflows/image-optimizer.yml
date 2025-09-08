@@ -56,11 +56,9 @@ jobs:
         env:
           SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
           FILES_TO_PROCESS: ${{ steps.find_files.outputs.files_to_process }}
-          # --- 可配置的轮询参数 ---
-          MAX_ATTEMPTS: 5 # 最多尝试轮询 5 次
-          POLL_INTERVAL_SECONDS: 60 # 每次轮询间隔 60 秒
+          MAX_ATTEMPTS: 5
+          POLL_INTERVAL_SECONDS: 60
         run: |
-          # 将待处理文件列表存储到数组中
           PENDING_URLS_STRING=$(echo "$FILES_TO_PROCESS" | tr ' ' '\n' | jq -R . | jq -s 'map("https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/" + .)')
           
           for attempt in $(seq 1 $MAX_ATTEMPTS); do
@@ -77,13 +75,12 @@ jobs:
             "
 
             JSON_PAYLOAD=$(jq -n --arg key "$SHORTPIXEL_KEY" --argjson urls "$PENDING_URLS_STRING" '{
-              key: $key, plugin_version: "GHA40", lossy: 2, wait: 30, convertto: "+avif", urllist: $urls
+              key: $key, plugin_version: "GHA41", lossy: 2, wait: 30, convertto: "+avif", urllist: $urls
             }')
 
             echo "📞 Calling ShortPixel API..."
             API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
             
-            # 为下一次循环准备一个新的 "待办列表"
             NEXT_PENDING_URLS_STRING="[]"
 
             echo "✅ API call successful. Analyzing results..."
@@ -113,13 +110,16 @@ jobs:
                       echo "    -   Saved dimensions and removing original file: $original_path"
                       rm "$original_path"
                   else
-                      echo "    -   ❌ Download failed for '$original_path'."
-                      # 下载失败, 将其加入下一次重试列表
-                      NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq '. + ["'$original_url'"]' --)
+                      echo "    -   ❌ Download failed for '$original_path'. Will retry."
+                      # <<< FIX START >>>
+                      NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq --arg url "$original_url" '. + [$url]')
+                      # <<< FIX END >>>
                   fi
               elif [ "$status_code" == "1" ]; then
                   echo "    - ⏳ IN PROGRESS ($status_code): '$original_path' still processing. Will retry."
-                  NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq '. + ["'$original_url'"]' --)
+                  # <<< FIX START >>>
+                  NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq --arg url "$original_url" '. + [$url]')
+                  # <<< FIX END >>>
               else
                   echo "    - ❌ ERROR ($status_code): Could not process '$original_path'. Reason: '$status_message'."
               fi
@@ -128,9 +128,7 @@ jobs:
             PENDING_URLS_STRING="$NEXT_PENDING_URLS_STRING"
 
             if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ] && [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-                echo "
-    ... waiting ${POLL_INTERVAL_SECONDS} seconds before next attempt ...
-                "
+                echo -e "\n\t... waiting ${POLL_INTERVAL_SECONDS} seconds before next attempt ...\n"
                 sleep $POLL_INTERVAL_SECONDS
             fi
           done
@@ -141,7 +139,7 @@ jobs:
           fi
 
       - name: '🚀 Commit and Push Changes'
-        if: steps.find_files.outputs.files_to_process != ''
+        # 只有在处理和删除了原始文件后, git status 才会检测到变化。所以这个判断可以简化
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'build(media): Convert bundle images to AVIF'

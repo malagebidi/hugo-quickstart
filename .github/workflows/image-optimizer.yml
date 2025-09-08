@@ -51,8 +51,8 @@ jobs:
               # 定义需要的尺寸
               sizes="480 960 1200 1920 2560 3840"
               
-              # 检查原图本身的 AVIF
-              if [ ! -f "${base_path}.avif" ]; then
+              # 检查原图本身的 AVIF（只有宽度<=3840的才需要原图AVIF）
+              if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
                 echo "$f"
                 continue
               fi
@@ -102,7 +102,7 @@ jobs:
         env:
           SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
           FILES_TO_PROCESS: ${{ steps.find_files.outputs.files_to_process }}
-          MAX_ATTEMPTS: 10
+          MAX_ATTEMPTS: 5
           POLL_INTERVAL_SECONDS: 30
         run: |
           # 为每个图片生成多个尺寸的 URL 和参数
@@ -129,15 +129,18 @@ jobs:
             # 定义需要生成的尺寸
             sizes="480 960 1200 1920 2560 3840"
             
-            # 添加原图处理（如果不存在对应 AVIF）
+            # 添加原图处理（只有宽度<=3840且不存在对应AVIF的才处理）
             base_path="${file_path%.*}"
-            if [ ! -f "${base_path}.avif" ]; then
+            if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
               url_list+=("$base_url")
               param_list+=('{
                 "resize": 0,
                 "convertto": "avif"
               }')
               file_mapping+=("$file_path:original")
+              echo "  - Will generate original size AVIF (${width}x${height})"
+            elif [ "$width" -gt 3840 ]; then
+              echo "  - Skipping original size AVIF (${width}x${height} > 3840w limit)"
             fi
             
             # 添加各个尺寸的处理
@@ -154,7 +157,7 @@ jobs:
                   "convertto": "avif"
                 }')
                 file_mapping+=("$file_path:${target_width}w")
-                echo "  - Will generate ${target_width}w version"
+                echo "  - Will generate ${target_width}w version (${target_width}x${target_height})"
               fi
             done
           done
@@ -272,6 +275,29 @@ jobs:
             if [ -f "$original_file" ]; then
               rm "$original_file"
               echo "  - Removed: $original_file"
+            fi
+          done
+          
+          # 对于超过3840宽度的图片，如果生成了缩略图就删除原文件
+          echo -e "\n🗑️ Cleaning up large source images with generated thumbnails..."
+          for file_path in $FILES_TO_PROCESS; do
+            dimensions="${file_dimensions[$file_path]}"
+            width=$(echo "$dimensions" | cut -d'x' -f1)
+            
+            if [ "$width" -gt 3840 ] && [ -f "$file_path" ]; then
+              base_path="${file_path%.*}"
+              # 检查是否至少有一个缩略图被生成
+              if ls "${base_path}_"*"w.avif" >/dev/null 2>&1; then
+                # 记录原图尺寸到yaml文件
+                dir_path=$(dirname "$file_path")
+                base_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
+                yaml_file="$dir_path/.image_dimensions.yaml"
+                touch "$yaml_file"
+                grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
+                
+                rm "$file_path"
+                echo "  - Removed large source image: $file_path (${dimensions})"
+              fi
             fi
           done
 

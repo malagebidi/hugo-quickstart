@@ -148,8 +148,8 @@ jobs:
             done
 
             # 3. 重新定义待处理的 URL 列表
-            # 只有状态码不是 2 或者没有找到有效的下载 URL 的项目才需要重试
-            NEXT_PENDING_URLS_STRING=$(echo "$API_RESPONSE" | jq '[.[] | select(.Status.Code != "2" or ([.AVIFLossyURL, .AVIFLosslessURL, .WebPLossyURL, .WebPLosslessURL, .LossyURL, .LosslessURL] | map(select(. != null and . != "NA" and . != "")) | length == 0)) | .OriginalURL]')
+            # 只有状态码不是 2 或者没有找到 AVIFLossyURL 的项目才需要重试
+            NEXT_PENDING_URLS_STRING=$(echo "$API_RESPONSE" | jq '[.[] | select(.Status.Code != "2" or (.AVIFLossyURL == null or .AVIFLossyURL == "NA" or .AVIFLossyURL == "")) | .OriginalURL]')
             
             PENDING_URLS_STRING="$NEXT_PENDING_URLS_STRING"
 

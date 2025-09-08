@@ -5,9 +5,8 @@ name: '🤖 Optimize Bundle Images with ShortPixel'
 on:
   push:
     branches:
-      - main  # 监听 main 分支的推送事件
+      - main
     paths:
-      # 只在这些类型的文件发生变化时触发
       - 'content/**/*.jpg'
       - 'content/**/*.png'
       - 'content/**/*.jpeg'
@@ -17,37 +16,28 @@ jobs:
     name: Convert Images Job
     runs-on: ubuntu-latest
     
-    # 授予工作流写入代码库的权限
     permissions:
       contents: write
       
-    # 防止机器人自己触发自己，造成无限循环
     if: github.event.pusher.name != 'GitHub Actions Bot' && github.event.pusher.name != 'github-actions[bot]'
 
     steps:
-      # 步骤 1: 检出代码
       - name: '⬇️ Checkout Code'
         uses: actions/checkout@v4
         with:
-          # 【修复关键点1】明确检出分支，并获取完整历史记录，为 rebase 做准备
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
-      # 步骤 2: 安装必要的工具
       - name: '🔧 Install Dependencies (ImageMagick & jq)'
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick jq
       
-      # 步骤 3: 核心处理逻辑
       - name: '🔄 Find, Process, and Replace Images'
         env:
-          SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }} # 从 GitHub Secrets 注入 API Key
+          SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
         run: |
           echo "🔍 Finding new or modified images..."
-          # 使用 git diff-tree 找出本次推送中新增(A)或修改(M)的图片
-          # -r 递归, --no-commit-id 隐藏commit id, --name-only 只显示文件名, -z 使用NUL作为分隔符
-          # HEAD~1 表示与上一个 commit 比较
           MODIFIED_FILES=$(git diff-tree --no-commit-id --name-only -r -z HEAD~1 HEAD -- 'content/**/*.jpg' 'content/**/*.png' 'content/**/*.jpeg' | xargs -0)
 
           if [ -z "$MODIFIED_FILES" ]; then
@@ -58,24 +48,22 @@ jobs:
           echo "🚀 Processing the following files:"
           echo "$MODIFIED_FILES"
 
-          # 将文件列表转换为 JSON 数组格式，用于 API 请求
           URLS_JSON=$(echo "$MODIFIED_FILES" | jq -R . | jq -s 'map("https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/" + .)')
           
           echo "Building JSON payload..."
           JSON_PAYLOAD=$(jq -n --arg key "$SHORTPIXEL_KEY" --argjson urls "$URLS_JSON" '{
             key: $key,
             plugin_version: "GHA25",
-            lossy: 2,         # Glossy (高质量有损)
-            wait: 30,         # API 等待时间
-            resize: 0,        # 不调整尺寸，保持原图大小
-            convertto: "avif",# 直接转换为 AVIF 格式
+            lossy: 2,
+            wait: 30,
+            resize: 0,
+            convertto: "avif",
             urllist: $urls
           }')
 
           echo "📞 Calling ShortPixel API..."
           API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
 
-          # 检查 API 是否返回了错误
           if echo "$API_RESPONSE" | jq -e '.[0].Status.Code == "-2"' > /dev/null; then
               echo "❌ ERROR: ShortPixel API returned an error."
               echo "$API_RESPONSE" | jq
@@ -87,7 +75,6 @@ jobs:
             original_url=$(echo "$item" | jq -r .OriginalURL)
             avif_url=$(echo "$item" | jq -r .AVIFURL)
             
-            # 从 URL 中提取本地文件路径
             original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
             
             if [ -z "$original_path" ]; then
@@ -95,28 +82,30 @@ jobs:
                 continue
             fi
             
-            # 获取图片目录和基本文件名
             dir_path=$(dirname "$original_path")
             base_name=$(basename "$original_path" | sed 's/\.[^.]*$//')
             avif_path="$dir_path/$base_name.avif"
 
             echo "    - Downloading AVIF for $original_path -> $avif_path"
-            curl -s -o "$avif_path" "$avif_url"
+            
+            # <<< FIX START >>>
+            # 修复：在下载前短暂等待，给 CDN 传播留出时间
+            sleep 3
+            # 修复：为 curl 添加重试逻辑，使其在遇到临时网络问题时更稳健
+            # --retry 3: 最多重试3次
+            # --retry-delay 5: 每次重试间隔5秒
+            curl -s --retry 3 --retry-delay 5 -o "$avif_path" "$avif_url"
+            # <<< FIX END >>>
 
-            # 获取原始尺寸并写入 YAML 文件 (如果存在)
             if [ -f "$original_path" ]; then
               dimensions=$(identify -format "%wx%h" "$original_path")
               yaml_file="$dir_path/.image_dimensions.yaml"
               
-              # 检查文件是否存在，如果不存在则创建
               touch "$yaml_file"
               
-              # 使用更安全的方式更新 YAML，避免重复条目 (虽然在这个工作流中不太可能发生)
               if grep -q "${base_name}:" "$yaml_file"; then
-                # 如果条目已存在, 更新它 (使用 sed)
                 sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
               else
-                # 如果条目不存在, 追加
                 echo "${base_name}: ${dimensions}" >> "$yaml_file"
               fi
               echo "    - Saved dimensions (${dimensions}) to ${yaml_file}"
@@ -130,22 +119,14 @@ jobs:
 
           echo "🎉 Image processing complete."
 
-      # 步骤 4: 与远程同步，防止 non-fast-forward 错误
       - name: '🔄 Synchronize changes before committing'
         run: |
-          # 必须先配置 Git 用户信息
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions-bot@users.noreply.github.com'
-          
-          # 【修复关键点2】拉取远程分支的最新更改并变基
-          # 这会将本地提交(图片转换)应用到远程最新代码的顶部
           git pull --rebase
           
-      # 步骤 5: 提交并推送所有更改 (包括 AVIF, YAML, 和被删除的原图)
       - name: '🚀 Commit and Push Changes'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'build(media): Convert bundle images to AVIF via ShortPixel'
-          # 可选: 如果希望 commit 作者是你自己
           commit_author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
-

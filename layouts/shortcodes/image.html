@@ -1,12 +1,11 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Compatible version for Netlify Hugo template
+  Multi-size AVIF support with responsive images
 */}}
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
 {{ $class := .Get "class" }}
-{{ $avifPath := printf "%s.avif" $src }}
-{{ $avifResource := .Page.Resources.GetMatch $avifPath }}
+{{ $lazy := .Get "lazy" | default "true" }}
 
 {{/* Try to get dimensions from hidden dimensions file */}}
 {{ $width := "" }}
@@ -27,15 +26,11 @@
 {{ end }}
 {{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
 
-{{/* Debug info - remove this in production */}}
-<!-- Debug: Looking for dimensions file at: {{ $dimensionsFilePath }} -->
-
 {{/* Try to read the dimensions file */}}
 {{ if fileExists $dimensionsFilePath }}
   {{ $dimensionsContent := readFile $dimensionsFilePath }}
   {{ if $dimensionsContent }}
     {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
-    {{/* New format: direct key-value pairs instead of nested structure */}}
     {{ with (index $dimensionsData $src) }}
       {{/* Parse the "widthxheight" format */}}
       {{ $dimensionStr := . }}
@@ -49,19 +44,49 @@
   {{ end }}
 {{ end }}
 
+{{/* Build srcset for different sizes */}}
+{{ $basePath := printf "%s" $src }}
+{{ $avifPath := printf "%s.avif" $src }}
+{{ $avifResource := .Page.Resources.GetMatch $avifPath }}
+
+{{ $srcset := slice }}
+{{ $sizes := slice "480" "960" "1200" "1920" "2560" "3840" }}
+
 {{ if $avifResource }}
-  {{/* Case A: The .avif file was found */}}
+  {{/* Main AVIF file exists, check for different sizes */}}
+  {{ range $sizes }}
+    {{ $sizedPath := printf "%s_%sw.avif" $src . }}
+    {{ $sizedResource := $.Page.Resources.GetMatch $sizedPath }}
+    {{ if $sizedResource }}
+      {{ $srcset = $srcset | append (printf "%s %sw" $sizedResource.RelPermalink .) }}
+    {{ end }}
+  {{ end }}
+  
+  {{/* Add the original size as the largest option */}}
+  {{ if $dimensionsFound }}
+    {{ $srcset = $srcset | append (printf "%s %sw" $avifResource.RelPermalink $width) }}
+  {{ else }}
+    {{ $srcset = $srcset | append (printf "%s 4000w" $avifResource.RelPermalink) }}
+  {{ end }}
+  
   <img 
     src="{{ $avifResource.RelPermalink }}" 
+    {{ if gt (len $srcset) 0 }}
+    srcset="{{ delimit $srcset ", " }}"
+    sizes="(max-width: 480px) 480px, (max-width: 960px) 960px, (max-width: 1200px) 1200px, (max-width: 1920px) 1920px, (max-width: 2560px) 2560px, 3840px"
+    {{ end }}
     alt="{{ $alt }}" 
     class="{{ $class }}" 
     {{ if $dimensionsFound }}
     width="{{ $width }}" 
     height="{{ $height }}"
     {{ end }}
-    loading="lazy">
+    {{ if eq $lazy "true" }}
+    loading="lazy"
+    {{ end }}>
+    
 {{ else }}
-  {{/* Case B: The .avif file was NOT found, so find the original source image */}}
+  {{/* Case B: The .avif file was NOT found, try original source image */}}
   {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
   {{ with $originalResource }}
     <img 
@@ -72,7 +97,9 @@
       width="{{ $width }}" 
       height="{{ $height }}"
       {{ end }}
-      loading="lazy">
+      {{ if eq $lazy "true" }}
+      loading="lazy"
+      {{ end }}>
   {{ else }}
     {{/* Case C: No images found */}}
     <p style="color: red;">

@@ -59,7 +59,7 @@ jobs:
           SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
           FILES_TO_PROCESS: ${{ steps.find_files.outputs.files_to_process }}
           MAX_ATTEMPTS: 5
-          POLL_INTERVAL_SECONDS: 60
+          POLL_INTERVAL_SECONDS: 30
         run: |
           PENDING_URLS_STRING=$(echo "$FILES_TO_PROCESS" | tr ' ' '\n' | jq -R . | jq -s 'map("https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/" + .)')
           

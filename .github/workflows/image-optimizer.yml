@@ -40,50 +40,45 @@ jobs:
         run: |
           echo "🔍 Finding images that need conversion..."
           
-          # 创建临时文件列表
-          TEMP_FILE=$(mktemp)
-          
-          # 查找所有图片文件
-          find content -type f $ -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" $ > "$TEMP_FILE"
-          
-          # 检查每个文件是否需要处理
           FILES_TO_PROCESS=""
-          while IFS= read -r file_path; do
-            if [ -f "$file_path" ]; then
-              base_path="${file_path%.*}"
-              
-              # 获取原图尺寸
-              dimensions=$(identify -format "%wx%h" "$file_path" 2>/dev/null || echo "0x0")
-              width=$(echo "$dimensions" | cut -d'x' -f1)
-              
-              # 检查是否需要处理
-              needs_processing=false
-              
-              # 定义需要的尺寸
-              sizes="480 960 1200 1920 2560 3840"
-              
-              # 检查原图本身的 AVIF（只有宽度<=3840的才需要原图AVIF）
-              if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
-                needs_processing=true
-              fi
-              
-              # 检查各个尺寸的 AVIF
-              if [ "$needs_processing" = "false" ]; then
-                for size in $sizes; do
-                  if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
-                    needs_processing=true
-                    break
-                  fi
-                done
-              fi
-              
-              if [ "$needs_processing" = "true" ]; then
-                FILES_TO_PROCESS="$FILES_TO_PROCESS $file_path"
-              fi
-            fi
-          done < "$TEMP_FILE"
           
-          rm "$TEMP_FILE"
+          # 使用 for 循环代替 find 来避免语法错误
+          for ext in jpg jpeg png; do
+            for file in $(find content -type f -name "*.${ext}" 2>/dev/null || true); do
+              if [ -f "$file" ]; then
+                base_path="${file%.*}"
+                
+                # 获取原图尺寸
+                dimensions=$(identify -format "%wx%h" "$file" 2>/dev/null || echo "0x0")
+                width=$(echo "$dimensions" | cut -d'x' -f1)
+                
+                # 检查是否需要处理
+                needs_processing=false
+                
+                # 定义需要的尺寸
+                sizes="480 960 1200 1920 2560 3840"
+                
+                # 检查原图本身的 AVIF（只有宽度<=3840的才需要原图AVIF）
+                if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
+                  needs_processing=true
+                fi
+                
+                # 检查各个尺寸的 AVIF
+                if [ "$needs_processing" = "false" ]; then
+                  for size in $sizes; do
+                    if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
+                      needs_processing=true
+                      break
+                    fi
+                  done
+                fi
+                
+                if [ "$needs_processing" = "true" ]; then
+                  FILES_TO_PROCESS="$FILES_TO_PROCESS $file"
+                fi
+              fi
+            done
+          done
           
           # 输出结果
           if [ -n "$FILES_TO_PROCESS" ]; then
@@ -305,20 +300,17 @@ jobs:
               dir_path=$(dirname "$yaml_file")
               temp_file=$(mktemp)
               while IFS=': ' read -r base_name dimensions; do
-                # 检查是否存在对应的 AVIF 文件（原图或任何尺寸）
                 if [ -f "$dir_path/$base_name.avif" ] || ls "$dir_path/${base_name}_"*"w.avif" >/dev/null 2>&1; then
                   echo "$base_name: $dimensions" >> "$temp_file"
                 fi
               done < "$yaml_file"
               mv "$temp_file" "$yaml_file"
               
-              # 如果文件为空则删除
               if [ ! -s "$yaml_file" ]; then
                 rm "$yaml_file"
               fi
             fi
           done
-
       - name: '🚀 Commit and Push Changes'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:

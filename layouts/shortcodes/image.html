@@ -7,23 +7,30 @@
 {{ $class := .Get "class" }}
 {{ $lazy := .Get "lazy" | default "true" }}
 
+{{/* Extract base name without extension */}}
+{{ $srcBase := $src }}
+{{ $lastDot := strings.LastIndex $src "." }}
+{{ if ne $lastDot -1 }}
+  {{ $srcBase = substr $src 0 $lastDot }}
+{{ end }}
+
 {{/* Try to get dimensions from hidden dimensions file */}}
 {{ $width := "" }}
 {{ $height := "" }}
 {{ $dimensionsFound := false }}
 
-{{/* More robust path construction */}}
+{{/* Get the directory where this post/page is located */}}
 {{ $pagePath := "" }}
 {{ with .Page.File }}
   {{ $pagePath = .Dir }}
 {{ else }}
-  {{/* Fallback for pages without File (like _index.md) */}}
-  {{ $pagePath = .Page.RelPermalink | strings.TrimSuffix "/" | strings.TrimPrefix "/" }}
-  {{ if eq $pagePath "" }}
-    {{ $pagePath = "." }}
+  {{/* Fallback for pages without File */}}
+  {{ $pagePath = path.Dir .Page.RelPermalink }}
+  {{ if eq $pagePath "." }}
+    {{ $pagePath = "" }}
   {{ end }}
-  {{ $pagePath = printf "%s/" $pagePath }}
 {{ end }}
+
 {{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
 
 {{/* Try to read the dimensions file */}}
@@ -31,7 +38,7 @@
   {{ $dimensionsContent := readFile $dimensionsFilePath }}
   {{ if $dimensionsContent }}
     {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
-    {{ with (index $dimensionsData $src) }}
+    {{ with (index $dimensionsData $srcBase) }}
       {{/* Parse the "widthxheight" format */}}
       {{ $dimensionStr := . }}
       {{ $parts := split $dimensionStr "x" }}
@@ -45,38 +52,56 @@
 {{ end }}
 
 {{/* Build srcset for different sizes */}}
-{{ $basePath := printf "%s" $src }}
-{{ $avifPath := printf "%s.avif" $src }}
-{{ $avifResource := .Page.Resources.GetMatch $avifPath }}
-
 {{ $srcset := slice }}
 {{ $sizes := slice "480" "960" "1200" "1920" "2560" "3840" }}
+{{ $availableSizes := slice }}
 
-{{ if $avifResource }}
-  {{/* Main AVIF file exists, check for different sizes */}}
-  {{ range $sizes }}
-    {{ $sizedPath := printf "%s_%sw.avif" $src . }}
-    {{ $sizedResource := $.Page.Resources.GetMatch $sizedPath }}
-    {{ if $sizedResource }}
-      {{ $srcset = $srcset | append (printf "%s %sw" $sizedResource.RelPermalink .) }}
-    {{ end }}
+{{/* Check what AVIF sizes are available */}}
+{{ range $sizes }}
+  {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
+  {{ $sizedResource := $.Page.Resources.GetMatch $sizedPath }}
+  {{ if $sizedResource }}
+    {{ $srcset = $srcset | append (printf "%s %sw" $sizedResource.RelPermalink .) }}
+    {{ $availableSizes = $availableSizes | append . }}
   {{ end }}
-  
-  {{/* Add the original size as the largest option */}}
+{{ end }}
+
+{{/* Check if original size AVIF exists (for smaller images) */}}
+{{ $originalAvifPath := printf "%s.avif" $srcBase }}
+{{ $originalAvifResource := .Page.Resources.GetMatch $originalAvifPath }}
+
+{{/* Determine the main src and largest size */}}
+{{ $mainSrc := "" }}
+{{ $largestSize := "" }}
+
+{{ if $originalAvifResource }}
+  {{/* Use original AVIF as main src */}}
+  {{ $mainSrc = $originalAvifResource.RelPermalink }}
   {{ if $dimensionsFound }}
-    {{ $srcset = $srcset | append (printf "%s %sw" $avifResource.RelPermalink $width) }}
-  {{ else }}
-    {{ $srcset = $srcset | append (printf "%s 4000w" $avifResource.RelPermalink) }}
+    {{ $largestSize = $width }}
+    {{ $srcset = $srcset | append (printf "%s %sw" $originalAvifResource.RelPermalink $width) }}
   {{ end }}
-  
+{{ else if gt (len $availableSizes) 0 }}
+  {{/* Use largest available size as main src */}}
+  {{ $largestAvailableSize := index (last 1 $availableSizes) 0 }}
+  {{ $largestPath := printf "%s_%sw.avif" $srcBase $largestAvailableSize }}
+  {{ $largestResource := .Page.Resources.GetMatch $largestPath }}
+  {{ if $largestResource }}
+    {{ $mainSrc = $largestResource.RelPermalink }}
+    {{ $largestSize = $largestAvailableSize }}
+  {{ end }}
+{{ end }}
+
+{{/* If we have AVIF files, render the optimized image */}}
+{{ if $mainSrc }}
   <img 
-    src="{{ $avifResource.RelPermalink }}" 
+    src="{{ $mainSrc }}" 
     {{ if gt (len $srcset) 0 }}
     srcset="{{ delimit $srcset ", " }}"
     sizes="(max-width: 480px) 480px, (max-width: 960px) 960px, (max-width: 1200px) 1200px, (max-width: 1920px) 1920px, (max-width: 2560px) 2560px, 3840px"
     {{ end }}
     alt="{{ $alt }}" 
-    class="{{ $class }}" 
+    {{ with $class }}class="{{ . }}" {{ end }}
     {{ if $dimensionsFound }}
     width="{{ $width }}" 
     height="{{ $height }}"
@@ -86,13 +111,13 @@
     {{ end }}>
     
 {{ else }}
-  {{/* Case B: The .avif file was NOT found, try original source image */}}
-  {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $src) }}
+  {{/* Fallback: try to find original source image */}}
+  {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $srcBase) }}
   {{ with $originalResource }}
     <img 
       src="{{ .RelPermalink }}" 
       alt="{{ $alt }}" 
-      class="{{ $class }}" 
+      {{ with $class }}class="{{ . }}" {{ end }}
       {{ if $dimensionsFound }}
       width="{{ $width }}" 
       height="{{ $height }}"
@@ -101,9 +126,18 @@
       loading="lazy"
       {{ end }}>
   {{ else }}
-    {{/* Case C: No images found */}}
+    {{/* No images found at all */}}
     <p style="color: red;">
       <strong>Image Error:</strong> Could not find any image resource matching '{{ $src }}' in this Page Bundle.
+      <br>Looked for: {{ $originalAvifPath }}, sized AVIF files, and {{ $src }}
+      {{ if fileExists $dimensionsFilePath }}
+        <br>Dimensions file found at: {{ $dimensionsFilePath }}
+        {{ if $dimensionsFound }}
+        <br>Dimensions found: {{ $width }}x{{ $height }}
+        {{ end }}
+      {{ else }}
+        <br>No dimensions file found at: {{ $dimensionsFilePath }}
+      {{ end }}
     </p>
   {{ end }}
 {{ end }}

@@ -12,7 +12,7 @@ on:
       - 'content/**/*.jpeg'
   
   schedule:
-    - cron: '0 0 * * *' # 北京时间每日上午8点
+    - cron: '0 0 * * *'
     
   workflow_dispatch:
 
@@ -32,120 +32,117 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: '🔧 Install Dependencies (ImageMagick, jq, dnsutils)'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick jq dnsutils
+      - name: '🔧 Install Dependencies'
+        run: sudo apt-get update && sudo apt-get install -y imagemagick jq dnsutils
 
       - name: '🔄 Find Images to Process'
         id: find_files
         run: |
           echo "🔍 Finding images that need conversion..."
           UNCONVERTED_FILES=""
-          find content -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read -r original_file; do
-            base_name=$(basename "$original_file" | sed 's/\.[^.]*$//')
-            dir_path=$(dirname "$original_file")
-            avif_file="$dir_path/$base_name.avif"
-            if [ ! -f "$avif_file" ]; then
-              echo "  - Found unconverted: $original_file"
-              UNCONVERTED_FILES="$UNCONVERTED_FILES$original_file "
-            fi
+          find content -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read -r f; do
+            [ ! -f "${f%.*}.avif" ] && UNCONVERTED_FILES="$UNCONVERTED_FILES$f "
           done
-          echo "files_to_process=${UNCONVERTED_FILES}" >> $GITHUB_OUTPUT
-
-      - name: '🚀 Process Images with ShortPixel'
+          if [ -n "$UNCONVERTED_FILES" ]; then
+            echo "  - Found $(echo $UNCONVERTED_FILES | wc -w) unconverted images."
+            echo "files_to_process=${UNCONVERTED_FILES}" >> $GITHUB_OUTPUT
+          else
+            echo "✅ No images to process."
+            echo "files_to_process=" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: '🚀 Process Images with ShortPixel and Smart Polling'
         if: steps.find_files.outputs.files_to_process != ''
         env:
-          SHORT_PIXEL_KEY: ${{ secrets.SHORT_PIXEL_KEY }} # 修正了变量名, 以匹配 secrets
+          SHORTPIXEL_KEY: ${{ secrets.SHORTPIXEL_KEY }}
           FILES_TO_PROCESS: ${{ steps.find_files.outputs.files_to_process }}
+          # --- 可配置的轮询参数 ---
+          MAX_ATTEMPTS: 5 # 最多尝试轮询 5 次
+          POLL_INTERVAL_SECONDS: 60 # 每次轮询间隔 60 秒
         run: |
-          echo "🚀 Processing the following files:"
-          echo "$FILES_TO_PROCESS"
-
-          URLS_JSON=$(echo "$FILES_TO_PROCESS" | tr ' ' '\n' | jq -R . | jq -s 'map("https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/" + .)')
+          # 将待处理文件列表存储到数组中
+          PENDING_URLS_STRING=$(echo "$FILES_TO_PROCESS" | tr ' ' '\n' | jq -R . | jq -s 'map("https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/" + .)')
           
-          echo "Building JSON payload..."
-          # 我们仍然设置一个等待时间, 以便快速处理大多数图片
-          JSON_PAYLOAD=$(jq -n --arg key "$SHORT_PIXEL_KEY" --argjson urls "$URLS_JSON" '{
-            key: $key,
-            plugin_version: "GHA30",
-            lossy: 2,
-            wait: 30, 
-            convertto: "+avif",
-            urllist: $urls
-          }')
-
-          echo "📞 Calling ShortPixel API..."
-          API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
-
-          echo "✅ API call successful. Analyzing results..."
-          echo "$API_RESPONSE" | jq -c '.[]' | while read -r item; do
-            original_url=$(echo "$item" | jq -r .OriginalURL)
-            original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
-            
-            # <<< CORE LOGIC UPGRADE: State Machine based on Status.Code >>>
-            status_code=$(echo "$item" | jq -r .Status.Code)
-            status_message=$(echo "$item" | jq -r .Status.Message)
-
-            # 状态 2: 成功! 图片已处理完毕
-            if [ "$status_code" == "2" ]; then
-                avif_url=$(echo "$item" | jq -r .AVIFURL)
-                
-                # 双重保险: 即使状态是2, 也验证URL非空
-                if [ "$avif_url" == "null" ] || [ -z "$avif_url" ]; then
-                    echo "    - ⚠️ UNEXPECTED: Status is 2 but AVIF URL is null for '$original_path'. Skipping."
-                    continue
-                fi
-
-                dir_path=$(dirname "$original_path")
-                base_name=$(basename "$original_path" | sed 's/\.[^.]*$//')
-                avif_path="$dir_path/$base_name.avif"
-
-                echo "    - ✅ SUCCESS ($status_code): Downloading AVIF for $original_path -> $avif_path"
-                
-                temp_url="${avif_url#*//}"
-                url_hostname="${temp_url%%/*}"
-                ip_address=$(dig @1.1.1.1 "$url_hostname" +short | head -n 1)
-
-                if [ -z "$ip_address" ]; then
-                  echo "    -   ❌ FAILED to resolve IP for '${url_hostname}'. Skipping download, will retry on next run."
-                  continue
-                fi
-
-                curl -fsS --retry 3 --retry-delay 5 --resolve "${url_hostname}:443:${ip_address}" -o "$avif_path" "$avif_url"
-                
-                if [ -f "$avif_path" ] && [ -s "$avif_path" ]; then
-                    dimensions=$(identify -format "%wx%h" "$original_path")
-                    yaml_file="$dir_path/.image_dimensions.yaml"
-                    touch "$yaml_file"
-                    if grep -q "${base_name}:" "$yaml_file"; then
-                        sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
-                    else
-                        echo "${base_name}: ${dimensions}" >> "$yaml_file"
-                    fi
-                    echo "    -   Saved dimensions (${dimensions}) and removing original file: $original_path"
-                    rm "$original_path"
-                else
-                    echo "    -   ❌ FAILED to download or file is empty. Will retry on next run."
-                fi
-
-            # 状态 1: 处理中...
-            elif [ "$status_code" == "1" ]; then
-                echo "    - ⏳ IN PROGRESS ($status_code): '$original_path' is still processing. Skipping for now, will be checked on the next scheduled run."
-                continue
-            
-            # 其他状态: 错误
-            else
-                echo "    - ❌ ERROR ($status_code): Could not process '$original_path'. Reason: '$status_message'. Please check the file or your ShortPixel account."
-                continue
+          for attempt in $(seq 1 $MAX_ATTEMPTS); do
+            if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -eq 0 ]; then
+                echo "🎉 All images processed successfully!"
+                break
             fi
-            # <<< END OF CORE LOGIC UPGRADE >>>
+
+            echo "
+            -=================================-
+            -   ATTEMPT ${attempt} / ${MAX_ATTEMPTS}
+            -   Processing $(echo "$PENDING_URLS_STRING" | jq 'length') images...
+            -=================================-
+            "
+
+            JSON_PAYLOAD=$(jq -n --arg key "$SHORTPIXEL_KEY" --argjson urls "$PENDING_URLS_STRING" '{
+              key: $key, plugin_version: "GHA40", lossy: 2, wait: 30, convertto: "+avif", urllist: $urls
+            }')
+
+            echo "📞 Calling ShortPixel API..."
+            API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
+            
+            # 为下一次循环准备一个新的 "待办列表"
+            NEXT_PENDING_URLS_STRING="[]"
+
+            echo "✅ API call successful. Analyzing results..."
+            echo "$API_RESPONSE" | jq -c '.[]' | while read -r item; do
+              original_url=$(echo "$item" | jq -r .OriginalURL)
+              original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
+              status_code=$(echo "$item" | jq -r .Status.Code)
+              status_message=$(echo "$item" | jq -r .Status.Message)
+
+              if [ "$status_code" == "2" ]; then
+                  avif_url=$(echo "$item" | jq -r .AVIFURL)
+                  if [ "$avif_url" == "null" ] || [ -z "$avif_url" ]; then
+                      echo "    - ⚠️ UNEXPECTED: Status 2 but AVIF URL is null for '$original_path'. Skipping."
+                      continue
+                  fi
+                  dir_path=$(dirname "$original_path"); base_name=$(basename "$original_path" | sed 's/\.[^.]*$//'); avif_path="$dir_path/$base_name.avif"
+                  echo "    - ✅ SUCCESS ($status_code): Downloading for $original_path"
+                  
+                  temp_url="${avif_url#*//}"; url_hostname="${temp_url%%/*}"; ip_address=$(dig @1.1.1.1 "$url_hostname" +short | head -n 1)
+                  if [ -z "$ip_address" ]; then echo "    -   ❌ DNS resolution failed for '${url_hostname}'."; continue; fi
+                  
+                  curl -fsS --retry 3 --resolve "${url_hostname}:443:${ip_address}" -o "$avif_path" "$avif_url"
+                  if [ -s "$avif_path" ]; then
+                      dimensions=$(identify -format "%wx%h" "$original_path")
+                      yaml_file="$dir_path/.image_dimensions.yaml"; touch "$yaml_file"
+                      grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
+                      echo "    -   Saved dimensions and removing original file: $original_path"
+                      rm "$original_path"
+                  else
+                      echo "    -   ❌ Download failed for '$original_path'."
+                      # 下载失败, 将其加入下一次重试列表
+                      NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq '. + ["'$original_url'"]' --)
+                  fi
+              elif [ "$status_code" == "1" ]; then
+                  echo "    - ⏳ IN PROGRESS ($status_code): '$original_path' still processing. Will retry."
+                  NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq '. + ["'$original_url'"]' --)
+              else
+                  echo "    - ❌ ERROR ($status_code): Could not process '$original_path'. Reason: '$status_message'."
+              fi
+            done
+            
+            PENDING_URLS_STRING="$NEXT_PENDING_URLS_STRING"
+
+            if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ] && [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+                echo "
+    ... waiting ${POLL_INTERVAL_SECONDS} seconds before next attempt ...
+                "
+                sleep $POLL_INTERVAL_SECONDS
+            fi
           done
-      
+
+          if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ]; then
+              echo "⚠️ WARNING: After ${MAX_ATTEMPTS} attempts, the following images are still not processed. They will be retried on the next scheduled run:"
+              echo "$PENDING_URLS_STRING" | jq -r '.[]'
+          fi
+
       - name: '🚀 Commit and Push Changes'
         if: steps.find_files.outputs.files_to_process != ''
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: 'build(media): Convert bundle images to AVIF via ShortPixel'
+          commit_message: 'build(media): Convert bundle images to AVIF'
           commit_author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
-

@@ -254,10 +254,17 @@ jobs:
               fi
             done
             
-            # 检查是否至少生成了一些文件，如果是大图则可以删除原文件
-            if [ "$width" -gt 3840 ]; then
-              if ls "${base_path}_"*"w.avif" >/dev/null 2>&1; then
-                # 记录原图尺寸到yaml文件
+          # 统一处理所有成功转换的原始文件
+          echo -e "\n🗑️ Cleaning up successfully processed original files..."
+          for original_file in "${!processed_originals[@]}"; do
+            if [ -f "$original_file" ]; then
+              # 检查是否至少生成了一些AVIF文件
+              base_path="${original_file%.*}"
+              if [ -f "${base_path}.avif" ] || ls "${base_path}_"*"w.avif" >/dev/null 2>&1; then
+                # 记录尺寸信息
+                dimensions="${file_dimensions[$original_file]}"
+                dir_path=$(dirname "$original_file")
+                base_name=$(basename "$original_file" | sed 's/\.[^.]*$//')
                 yaml_file="$dir_path/.image_dimensions.yaml"
                 touch "$yaml_file"
                 if grep -q "${base_name}:" "$yaml_file" 2>/dev/null; then
@@ -266,30 +273,11 @@ jobs:
                   echo "${base_name}: ${dimensions}" >> "$yaml_file"
                 fi
                 
-                rm "$file_path"
-                echo "  🗑️ Removed large source image: $(basename "$file_path") (${dimensions})"
-              fi
-            fi
-          done
-          
-          # 处理成功转换的原始文件（<=3840宽度的）
-          echo -e "\n🗑️ Cleaning up successfully processed original files..."
-          for original_file in "${!processed_originals[@]}"; do
-            if [ -f "$original_file" ]; then
-              # 记录尺寸信息
-              dimensions="${file_dimensions[$original_file]}"
-              dir_path=$(dirname "$original_file")
-              base_name=$(basename "$original_file" | sed 's/\.[^.]*$//')
-              yaml_file="$dir_path/.image_dimensions.yaml"
-              touch "$yaml_file"
-              if grep -q "${base_name}:" "$yaml_file" 2>/dev/null; then
-                sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
+                rm "$original_file"
+                echo "  - ✅ Removed: $(basename "$original_file") (${dimensions})"
               else
-                echo "${base_name}: ${dimensions}" >> "$yaml_file"
+                echo "  - ⚠️ No AVIF files found for: $(basename "$original_file"), keeping original"
               fi
-              
-              rm "$original_file"
-              echo "  - Removed: $(basename "$original_file")"
             fi
           done
       - name: '🧹 Clean up orphaned dimensions'

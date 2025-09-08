@@ -26,11 +26,11 @@ jobs:
           # 需要完整历史来比较最近的两次提交
           fetch-depth: 0 
       
-      - name: '🔧 Install Dependencies (ImageMagick)'
-        # 我们不再需要 avifenc，但仍然需要 imagemagick 来获取图片尺寸
+      - name: '🔧 Install Dependencies (ImageMagick & jq)'
+        # 我们不再需要 avifenc，但仍然需要 imagemagick 和 jq
         run: |
           sudo apt-get update
-          sudo apt-get install -y imagemagick
+          sudo apt-get install -y imagemagick jq
 
       - name: '🔄 Find, Process, and Replace Images'
         env:
@@ -69,17 +69,16 @@ jobs:
               echo "dimensions:" >> "$dimensions_file"
             fi
             
-            # 使用更安全的 YML 格式追加，避免重复条目
-            # 先删除可能存在的旧条目
-            sed -i "/\"${base}\":/,/height:/d" "$dimensions_file"
-            # 再添加新条目
+            # 使用更安全的 YML 格式追加，避免重复条目 (先删除可能存在的旧条目, 再添加新条目)
+            if grep -q "\"${base}\":" "$dimensions_file"; then
+              sed -i "/\"${base}\":/,/height:/d" "$dimensions_file"
+            fi
             echo "  \"${base}\":" >> "$dimensions_file"
             echo "    width: $width" >> "$dimensions_file"
             echo "    height: $height" >> "$dimensions_file"
             # --- 尺寸逻辑结束 ---
 
             # 构建 GitHub Raw URL 并添加到列表中
-            # 注意：URL 编码很重要，但对于 GitHub 路径通常不是问题
             RAW_URL="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/$file"
             URL_LIST+="\"$RAW_URL\","
           done
@@ -90,16 +89,16 @@ jobs:
 
           # 3. 一次性调用 ShortPixel API
           JSON_PAYLOAD=$(cat <<EOF
-          {
-            "key": "$SHORTPIXEL_KEY",
-            "plugin_version": "GHA24",
-            "lossy": 1,
-            "wait": 30,
-            "resize": 1,
-            "resize_width": 1920,
-            "convertto": "+avif",
-            "urllist": $URLS_JSON
-          }
+{
+  "key": "$SHORTPIXEL_KEY",
+  "plugin_version": "GHA24",
+  "lossy": 1,
+  "wait": 30,
+  "resize": 1,
+  "resize_width": 1920,
+  "convertto": "+avif",
+  "urllist": $URLS_JSON
+}
 EOF
           )
           
@@ -129,8 +128,6 @@ EOF
              else
                 MESSAGE=$(echo "$item" | jq -r '.Status.Message')
                 echo "  - ❌ ERROR for $LOCAL_FILE: $MESSAGE (Code: $STATUS)"
-                # 如果某个文件失败，你可以选择是继续还是让整个工作流失败
-                # exit 1 # 如果需要严格模式，取消此行注释
              fi
           done
 
@@ -140,5 +137,5 @@ EOF
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'build(media): Convert bundle images to AVIF via ShortPixel'
-          commit_user_name: 'github-actions[bot]' # 推荐使用 [bot] 后缀
+          commit_user_name: 'github-actions[bot]'
           commit_user_email: 'github-actions-bot@users.noreply.github.com'

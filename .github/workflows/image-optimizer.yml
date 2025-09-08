@@ -79,11 +79,10 @@ jobs:
           JSON_PAYLOAD=$(jq -n --arg key "$SHORTPIXEL_KEY" --argjson urls "$URLS_JSON" '{
             key: $key,
             plugin_version: "GHA25",
-            lossy: 1,
+            lossy: 2,
             wait: 30,
-            resize: 1,
-            resize_width: 1920,
-            convertto: "+avif",
+            resize: 0,
+            convertto: "avif",
             urllist: $urls
           }')
 

@@ -1,5 +1,15 @@
+看到有两个问题：
+
+1. `find` 命令的语法错误
+2. GitHub Action 配置错误
+
+让我修复这些问题：
+
+```yaml
 # 文件路径: .github/workflows/image-optimizer.yml
+
 name: '🤖 Optimize Bundle Images with ShortPixel'
+
 on:
   push:
     branches:
@@ -9,76 +19,100 @@ on:
       - 'content/**/*.png'
       - 'content/**/*.jpeg'
       - 'content/**/*.avif'
-  
+
   schedule:
     - cron: '0 0 * * *'
-    
+  
   workflow_dispatch:
+
 jobs:
   build:
     name: Convert Images Job
     runs-on: ubuntu-latest
-    
+  
     permissions:
       contents: write
-      
+    
     if: github.event.pusher.name != 'GitHub Actions Bot' && github.event.pusher.name != 'github-actions[bot]'
+
     steps:
       - name: '⬇️ Checkout Code'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: '🔄 Pull Latest Changes'
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
           git pull origin main || true
+
       - name: '🔧 Install Dependencies'
         run: sudo apt-get update && sudo apt-get install -y imagemagick jq
+
       - name: '🔄 Find Images to Process'
         id: find_files
         run: |
           echo "🔍 Finding images that need conversion..."
-          FILE_LIST=$(
-            find content -type f $ -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" $ | while read -r f; do
-              # 检查是否存在任何对应的 AVIF 文件
-              base_path="${f%.*}"
-              has_avif=false
-              
-              # 获取原图尺寸来判断应该生成哪些尺寸
-              dimensions=$(identify -format "%wx%h" "$f" 2>/dev/null || echo "0x0")
+        
+          # 创建临时文件列表
+          TEMP_FILE=$(mktemp)
+        
+          # 查找所有图片文件
+          find content -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) > "$TEMP_FILE"
+        
+          # 检查每个文件是否需要处理
+          FILES_TO_PROCESS=""
+          while IFS= read -r file_path; do
+            if [ -f "$file_path" ]; then
+              base_path="${file_path%.*}"
+            
+              # 获取原图尺寸
+              dimensions=$(identify -format "%wx%h" "$file_path" 2>/dev/null || echo "0x0")
               width=$(echo "$dimensions" | cut -d'x' -f1)
-              
+            
+              # 检查是否需要处理
+              needs_processing=false
+            
               # 定义需要的尺寸
               sizes="480 960 1200 1920 2560 3840"
-              
+            
               # 检查原图本身的 AVIF（只有宽度<=3840的才需要原图AVIF）
               if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
-                echo "$f"
-                continue
+                needs_processing=true
               fi
-              
+            
               # 检查各个尺寸的 AVIF
-              for size in $sizes; do
-                if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
-                  echo "$f"
-                  break
-                fi
-              done
-            done | sort -u
-          )
-          UNCONVERTED_FILES=$(echo $FILE_LIST)
-          if [ -n "$UNCONVERTED_FILES" ]; then
-            echo "  - Found $(echo $UNCONVERTED_FILES | wc -w) images needing processing."
-            echo "files_to_process=${UNCONVERTED_FILES}" >> $GITHUB_OUTPUT
+              if [ "$needs_processing" = "false" ]; then
+                for size in $sizes; do
+                  if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
+                    needs_processing=true
+                    break
+                  fi
+                done
+              fi
+            
+              if [ "$needs_processing" = "true" ]; then
+                FILES_TO_PROCESS="$FILES_TO_PROCESS $file_path"
+              fi
+            fi
+          done < "$TEMP_FILE"
+        
+          rm "$TEMP_FILE"
+        
+          # 输出结果
+          if [ -n "$FILES_TO_PROCESS" ]; then
+            echo "files_to_process=$FILES_TO_PROCESS" >> $GITHUB_OUTPUT
+            echo "  - Found $(echo $FILES_TO_PROCESS | wc -w) images needing processing."
           else
-            echo "✅ No images to process."
             echo "files_to_process=" >> $GITHUB_OUTPUT
+            echo "✅ No images to process."
           fi
+
       - name: '🧹 Clean up orphaned dimensions'
         run: |
           echo "🧹 Cleaning up orphaned dimension entries..."
-          find content -name ".image_dimensions.yaml" | while read -r yaml_file; do
+          find content -name ".image_dimensions.yaml" 2>/dev/null | while read -r yaml_file; do
             if [ -f "$yaml_file" ]; then
               dir_path=$(dirname "$yaml_file")
               temp_file=$(mktemp)
@@ -89,14 +123,14 @@ jobs:
                 fi
               done < "$yaml_file"
               mv "$temp_file" "$yaml_file"
-              
+            
               # 如果文件为空则删除
               if [ ! -s "$yaml_file" ]; then
                 rm "$yaml_file"
               fi
             fi
           done
-          
+        
       - name: '🚀 Process Images with ShortPixel'
         if: steps.find_files.outputs.files_to_process != ''
         env:
@@ -108,33 +142,40 @@ jobs:
           # 用于跟踪已处理的原始文件
           declare -A processed_originals
           declare -A file_dimensions
-          
+        
           # 首先获取所有文件的尺寸信息
           for file_path in $FILES_TO_PROCESS; do
-            dimensions=$(identify -format "%wx%h" "$file_path")
-            file_dimensions["$file_path"]="$dimensions"
-            echo "📏 Processing $file_path ($dimensions)"
+            if [ -f "$file_path" ]; then
+              dimensions=$(identify -format "%wx%h" "$file_path")
+              file_dimensions["$file_path"]="$dimensions"
+              echo "📏 Processing $file_path ($dimensions)"
+            fi
           done
-          
+        
           # 处理每个文件
           for file_path in $FILES_TO_PROCESS; do
+            if [ ! -f "$file_path" ]; then
+              echo "⚠️ File not found: $file_path"
+              continue
+            fi
+          
             echo -e "\n🔄 Processing: $file_path"
             base_url="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/$file_path"
             base_path="${file_path%.*}"
             dir_path=$(dirname "$file_path")
             base_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
-            
+          
             # 从缓存的尺寸信息获取
             dimensions="${file_dimensions[$file_path]}"
             width=$(echo "$dimensions" | cut -d'x' -f1)
             height=$(echo "$dimensions" | cut -d'x' -f2)
-            
+          
             # 定义需要生成的尺寸
             sizes="480 960 1200 1920 2560 3840"
-            
+          
             # 收集需要处理的任务
-            declare -a tasks
-            
+            declare -a tasks=()
+          
             # 检查原图处理（只有宽度<=3840且不存在对应AVIF的才处理）
             if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
               tasks+=("original:$base_url:0:0")
@@ -142,7 +183,7 @@ jobs:
             elif [ "$width" -gt 3840 ]; then
               echo "  - Skipping original size AVIF (${width}x${height} > 3840w limit)"
             fi
-            
+          
             # 检查各个尺寸的处理
             for target_width in $sizes; do
               if [ "$width" -gt "$target_width" ] && [ ! -f "${base_path}_${target_width}w.avif" ]; then
@@ -151,19 +192,19 @@ jobs:
                 echo "  - Will generate ${target_width}w version (${target_width}x${target_height})"
               fi
             done
-            
+          
             # 逐个处理任务
             for task in "${tasks[@]}"; do
               IFS=':' read -r size_suffix url target_w target_h <<< "$task"
-              
+            
               echo "    Processing $size_suffix (target: ${target_w}x${target_h})..."
-              
+            
               # 重试机制
               success=false
               for attempt in $(seq 1 $MAX_ATTEMPTS); do
                 echo "      Attempt $attempt/$MAX_ATTEMPTS"
-                
-                # 构建API payload，使用字符串替换方式避免jq参数问题
+              
+                # 构建API payload
                 if [ "$size_suffix" = "original" ]; then
                   JSON_PAYLOAD='{
                     "key": "'$SHORTPIXEL_KEY'",
@@ -183,7 +224,7 @@ jobs:
                     echo "      ❌ Invalid dimensions: ${target_w}x${target_h}"
                     break
                   fi
-                  
+                
                   JSON_PAYLOAD='{
                     "key": "'$SHORTPIXEL_KEY'",
                     "plugin_version": "GHA45",
@@ -199,17 +240,16 @@ jobs:
                   }'
                   output_file="${base_path}_${size_suffix}.avif"
                 fi
-                
+              
                 # 验证 JSON 格式
                 if ! echo "$JSON_PAYLOAD" | jq empty 2>/dev/null; then
                   echo "      ❌ Invalid JSON payload"
-                  echo "      Payload: $JSON_PAYLOAD"
                   break
                 fi
-                
+              
                 # 调用 API
                 API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
-                
+              
                 # 检查响应
                 if [ -z "$API_RESPONSE" ]; then
                   echo "      ❌ Empty API response"
@@ -218,12 +258,12 @@ jobs:
                 else
                   status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
                   avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
-                  
+                
                   if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
                     if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
                       echo "      ✅ Successfully generated: $(basename "$output_file")"
                       success=true
-                      
+                    
                       # 记录原图处理状态
                       if [ "$size_suffix" = "original" ]; then
                         processed_originals["$file_path"]=1
@@ -239,36 +279,36 @@ jobs:
                     fi
                   fi
                 fi
-                
+              
                 if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
                   echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."
                   sleep $POLL_INTERVAL_SECONDS
                 fi
               done
-              
+            
               if [ "$success" != "true" ]; then
                 echo "      ⚠️ Failed to generate $size_suffix after $MAX_ATTEMPTS attempts"
               fi
             done
-            
+          
             # 检查是否至少生成了一些文件，如果是大图则可以删除原文件
             if [ "$width" -gt 3840 ]; then
               if ls "${base_path}_"*"w.avif" >/dev/null 2>&1; then
                 # 记录原图尺寸到yaml文件
                 yaml_file="$dir_path/.image_dimensions.yaml"
                 touch "$yaml_file"
-                if grep -q "${base_name}:" "$yaml_file"; then
+                if grep -q "${base_name}:" "$yaml_file" 2>/dev/null; then
                   sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
                 else
                   echo "${base_name}: ${dimensions}" >> "$yaml_file"
                 fi
-                
+              
                 rm "$file_path"
                 echo "  🗑️ Removed large source image: $(basename "$file_path") (${dimensions})"
               fi
             fi
           done
-          
+        
           # 处理成功转换的原始文件（<=3840宽度的）
           echo -e "\n🗑️ Cleaning up successfully processed original files..."
           for original_file in "${!processed_originals[@]}"; do
@@ -279,22 +319,22 @@ jobs:
               base_name=$(basename "$original_file" | sed 's/\.[^.]*$//')
               yaml_file="$dir_path/.image_dimensions.yaml"
               touch "$yaml_file"
-              if grep -q "${base_name}:" "$yaml_file"; then
+              if grep -q "${base_name}:" "$yaml_file" 2>/dev/null; then
                 sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
               else
                 echo "${base_name}: ${dimensions}" >> "$yaml_file"
               fi
-              
+            
               rm "$original_file"
               echo "  - Removed: $(basename "$original_file")"
             fi
           done
+
       - name: '🚀 Commit and Push Changes'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'build(media): Convert images to multi-size AVIF'
           commit_author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
-          pull_strategy: 'NO_PULL'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -303,7 +343,6 @@ jobs:
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
-          git add .
-          git commit -m "build(media): Convert images to multi-size AVIF [force]" || true
-          git pull --rebase origin main
-          git push origin main
+          git add -A
+          if git commit -m "build(media): Convert images to multi-size AVIF [force]"; then
+            git pull --rebase

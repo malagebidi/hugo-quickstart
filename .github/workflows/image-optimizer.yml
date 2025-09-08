@@ -1,11 +1,3 @@
-看到有两个问题：
-
-1. `find` 命令的语法错误
-2. GitHub Action 配置错误
-
-让我修复这些问题：
-
-```yaml
 # 文件路径: .github/workflows/image-optimizer.yml
 
 name: '🤖 Optimize Bundle Images with ShortPixel'

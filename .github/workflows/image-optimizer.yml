@@ -311,12 +311,19 @@ jobs:
           git rebase origin/main || true
     
       - name: '🚀 Commit and Push Changes'
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: 'build(media): Convert images to multi-size AVIF'
-          file_pattern: 'content/**/*.avif content/**/*.image_dimensions.yaml'
-          push_options: '--force-with-lease'
-          skip_dirty_check: true
-          skip_fetch: false
-          skip_checkout: false
-          create_branch: false
+        run: |
+          echo "🔍 Checking for changes..."
+
+          # 添加所有AVIF文件和dimension文件
+          find content -name "*.avif" -type f -exec git add {} + 2>/dev/null || true
+          find content -name ".image_dimensions.yaml" -type f -exec git add {} + 2>/dev/null || true
+
+          # 检查是否有变更
+          if git diff --cached --quiet; then
+            echo "📭 No changes to commit"
+          else
+            echo "✅ Found changes, committing..."
+            git commit -m "build(media): Convert images to multi-size AVIF"
+            git push --force-with-lease origin main
+            echo "🚀 Changes pushed successfully"
+          fi

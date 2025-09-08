@@ -7,4 +7,4 @@ draft: false
 
 为什么从WordPress转到Hugo呢？我还记得至少15年前
 
-{{< image src="zzqc" alt="那场战争，就是我们的青春" >}}
+{{< image src="intj_1" alt="那场战争，就是我们的青春" >}}

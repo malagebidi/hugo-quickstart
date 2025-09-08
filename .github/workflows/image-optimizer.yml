@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: '🔧 Install Dependencies'
-        run: sudo apt-get update && sudo apt-get install -y imagemagick jq dnsutils
+        run: sudo apt-get update && sudo apt-get install -y imagemagick jq
 
       - name: '🔄 Find Images to Process'
         id: find_files

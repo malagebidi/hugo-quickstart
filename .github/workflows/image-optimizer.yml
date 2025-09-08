@@ -37,21 +37,14 @@ jobs:
         id: find_files
         run: |
           echo "🔍 Finding images that need conversion..."
-          
-          # <<< FIX: Use a robust "Group and Capture" pattern >>>
-          # This avoids both the subshell variable scope issue and the process substitution syntax error.
-          # The entire find | while block runs in a subshell, and its standard output is captured by the main shell.
           FILE_LIST=$(
             find content -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read -r f; do
               if [ ! -f "${f%.*}.avif" ]; then
-                echo "$f" # Print the filename to stdout if it needs processing
+                echo "$f"
               fi
             done
           )
-          
-          # Convert the newline-separated list into a space-separated one
           UNCONVERTED_FILES=$(echo $FILE_LIST)
-
           if [ -n "$UNCONVERTED_FILES" ]; then
             echo "  - Found $(echo $UNCONVERTED_FILES | wc -w) unconverted images."
             echo "files_to_process=${UNCONVERTED_FILES}" >> $GITHUB_OUTPUT
@@ -79,50 +72,58 @@ jobs:
             echo -e "\n-=================================-\n-   ATTEMPT ${attempt} / ${MAX_ATTEMPTS}\n-   Processing $(echo "$PENDING_URLS_STRING" | jq 'length') images...\n-=================================-\n"
 
             JSON_PAYLOAD=$(jq -n --arg key "$SHORTPIXEL_KEY" --argjson urls "$PENDING_URLS_STRING" '{
-              key: $key, plugin_version: "GHA43", lossy: 2, wait: 30, convertto: "+avif", urllist: $urls
+              key: $key, plugin_version: "GHA44", lossy: 2, wait: 30, convertto: "+avif", urllist: $urls
             }')
 
             echo "📞 Calling ShortPixel API..."
             API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
             
-            NEXT_PENDING_URLS_STRING="[]"
-
             echo "✅ API call successful. Analyzing results..."
-            echo "$API_RESPONSE" | jq -c '.[]' | while read -r item; do
+
+            # <<< FIX START: This is the core logical fix. >>>
+            # 1. First, process and download all SUCCESSFUL images.
+            # Use `select` to filter only successful items (Status Code 2).
+            # The `while` loop is now only for processing, not for building retry lists.
+            echo "$API_RESPONSE" | jq -c '.[] | select(.Status.Code == "2")' | while read -r item; do
               original_url=$(echo "$item" | jq -r .OriginalURL)
               original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
-              status_code=$(echo "$item" | jq -r .Status.Code)
-              status_message=$(echo "$item" | jq -r .Status.Message)
-
-              if [ "$status_code" == "2" ]; then
-                  avif_url=$(echo "$item" | jq -r .AVIFURL)
-                  if [ "$avif_url" == "null" ] || [ -z "$avif_url" ]; then echo "    - ⚠️ UNEXPECTED: Status 2 but AVIF URL is null for '$original_path'."; continue; fi
-                  dir_path=$(dirname "$original_path"); base_name=$(basename "$original_path" | sed 's/\.[^.]*$//'); avif_path="$dir_path/$base_name.avif"
-                  echo "    - ✅ SUCCESS ($status_code): Downloading for $original_path"
-                  
-                  temp_url="${avif_url#*//}"; url_hostname="${temp_url%%/*}"; ip_address=$(dig @1.1.1.1 "$url_hostname" +short | head -n 1)
-                  if [ -z "$ip_address" ]; then echo "    -   ❌ DNS resolution failed for '${url_hostname}'. Will retry."; NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq --arg url "$original_url" '. + [$url]'); continue; fi
-                  
-                  curl -fsS --retry 3 --resolve "${url_hostname}:443:${ip_address}" -o "$avif_path" "$avif_url"
-                  if [ -s "$avif_path" ]; then
-                      dimensions=$(identify -format "%wx%h" "$original_path")
-                      yaml_file="$dir_path/.image_dimensions.yaml"; touch "$yaml_file"
-                      grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
-                      echo "    -   Saved dimensions and removing original file: $original_path"
-                      rm "$original_path"
-                  else
-                      echo "    -   ❌ Download failed for '$original_path'. Will retry."
-                      NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq --arg url "$original_url" '. + [$url]')
-                  fi
-              elif [ "$status_code" == "1" ]; then
-                  echo "    - ⏳ IN PROGRESS ($status_code): '$original_path' still processing. Will retry."
-                  NEXT_PENDING_URLS_STRING=$(echo "$NEXT_PENDING_URLS_STRING" | jq --arg url "$original_url" '. + [$url]')
+              avif_url=$(echo "$item" | jq -r .AVIFURL)
+              if [ "$avif_url" == "null" ] || [ -z "$avif_url" ]; then echo "    - ⚠️ UNEXPECTED: Status 2 but AVIF URL is null for '$original_path'."; continue; fi
+              
+              dir_path=$(dirname "$original_path"); base_name=$(basename "$original_path" | sed 's/\.[^.]*$//'); avif_path="$dir_path/$base_name.avif"
+              echo "    - ✅ SUCCESS: Downloading for $original_path"
+              
+              curl -fsS --retry 3 -o "$avif_path" "$avif_url"
+              if [ -s "$avif_path" ]; then
+                  dimensions=$(identify -format "%wx%h" "$original_path")
+                  yaml_file="$dir_path/.image_dimensions.yaml"; touch "$yaml_file"
+                  grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
+                  echo "    -   Saved dimensions and removing original file: $original_path"
+                  rm "$original_path"
               else
-                  echo "    - ❌ ERROR ($status_code): Could not process '$original_path'. Reason: '$status_message'."
+                  echo "    -   ❌ Download failed for '$original_path'. It will be retried."
               fi
             done
             
+            # 2. Log any other statuses for clarity.
+            echo "$API_RESPONSE" | jq -c '.[] | select(.Status.Code != "2")' | while read -r item; do
+              status_code=$(echo "$item" | jq -r .Status.Code)
+              status_message=$(echo "$item" | jq -r .Status.Message)
+              original_url=$(echo "$item" | jq -r .OriginalURL)
+              original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
+              if [ "$status_code" == "1" ]; then
+                echo "    - ⏳ IN PROGRESS: '$original_path' is still processing."
+              else
+                echo "    - ❌ ERROR ($status_code): Could not process '$original_path'. Reason: '$status_message'."
+              fi
+            done
+
+            # 3. Atomically generate the list of URLs for the NEXT attempt.
+            # This single `jq` command replaces the flawed shell logic entirely.
+            # It selects any items that are NOT successful and extracts their original URL.
+            NEXT_PENDING_URLS_STRING=$(echo "$API_RESPONSE" | jq '[.[] | select(.Status.Code != "2") | .OriginalURL]')
             PENDING_URLS_STRING="$NEXT_PENDING_URLS_STRING"
+            # <<< FIX END >>>
 
             if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ] && [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
                 echo -e "\n\t... waiting ${POLL_INTERVAL_SECONDS} seconds before next attempt ...\n"
@@ -131,7 +132,7 @@ jobs:
           done
 
           if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ]; then
-              echo "⚠️ WARNING: After ${MAX_ATTEMPTS} attempts, the following images are still not processed. They will be retried on the next scheduled run:"
+              echo "⚠️ WARNING: After ${MAX_ATTEMPTS} attempts, the following images are still not processed:"
               echo "$PENDING_URLS_STRING" | jq -r '.[]'
           fi
 
@@ -140,3 +141,4 @@ jobs:
         with:
           commit_message: 'build(media): Convert bundle images to AVIF'
           commit_author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
+

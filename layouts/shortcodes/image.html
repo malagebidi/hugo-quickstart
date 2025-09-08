@@ -7,11 +7,11 @@
 {{ $class := .Get "class" }}
 {{ $lazy := .Get "lazy" | default "true" }}
 
-{{/* Extract base name without extension */}}
-{{ $srcBase := $src }}
-{{ $lastDot := strings.LastIndex $src "." }}
-{{ if ne $lastDot -1 }}
-  {{ $srcBase = substr $src 0 $lastDot }}
+{{/* Extract base name without extension using path functions */}}
+{{ $srcBase := path.Base $src }}
+{{ $srcExt := path.Ext $srcBase }}
+{{ if $srcExt }}
+  {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
 {{ end }}
 
 {{/* Try to get dimensions from hidden dimensions file */}}
@@ -129,14 +129,15 @@
     {{/* No images found at all */}}
     <p style="color: red;">
       <strong>Image Error:</strong> Could not find any image resource matching '{{ $src }}' in this Page Bundle.
-      <br>Looked for: {{ $originalAvifPath }}, sized AVIF files, and {{ $src }}
+      <br>Looking for base name: {{ $srcBase }}
+      <br>Tried: {{ $originalAvifPath }} and sized AVIF files
       {{ if fileExists $dimensionsFilePath }}
         <br>Dimensions file found at: {{ $dimensionsFilePath }}
         {{ if $dimensionsFound }}
-        <br>Dimensions found: {{ $width }}x{{ $height }}
+        <br>Dimensions: {{ $width }}x{{ $height }}
         {{ end }}
       {{ else }}
-        <br>No dimensions file found at: {{ $dimensionsFilePath }}
+        <br>No dimensions file at: {{ $dimensionsFilePath }}
       {{ end }}
     </p>
   {{ end }}

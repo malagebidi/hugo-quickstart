@@ -10,7 +10,7 @@ on:
       - 'content/**/*.jpg'
       - 'content/**/*.png'
       - 'content/**/*.jpeg'
-      - 'content/**/*.avif'  # 添加对 AVIF 文件变更的监听
+      - 'content/**/*.avif'
   
   schedule:
     - cron: '0 0 * * *'
@@ -40,14 +40,35 @@ jobs:
           echo "🔍 Finding images that need conversion..."
           FILE_LIST=$(
             find content -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) | while read -r f; do
-              if [ ! -f "${f%.*}.avif" ]; then
+              # 检查是否存在任何对应的 AVIF 文件
+              base_path="${f%.*}"
+              has_avif=false
+              
+              # 获取原图尺寸来判断应该生成哪些尺寸
+              dimensions=$(identify -format "%wx%h" "$f" 2>/dev/null || echo "0x0")
+              width=$(echo "$dimensions" | cut -d'x' -f1)
+              
+              # 定义需要的尺寸
+              sizes="480 960 1200 1920 2560 3840"
+              
+              # 检查原图本身的 AVIF
+              if [ ! -f "${base_path}.avif" ]; then
                 echo "$f"
+                continue
               fi
-            done
+              
+              # 检查各个尺寸的 AVIF
+              for size in $sizes; do
+                if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
+                  echo "$f"
+                  break
+                fi
+              done
+            done | sort -u
           )
           UNCONVERTED_FILES=$(echo $FILE_LIST)
           if [ -n "$UNCONVERTED_FILES" ]; then
-            echo "  - Found $(echo $UNCONVERTED_FILES | wc -w) unconverted images."
+            echo "  - Found $(echo $UNCONVERTED_FILES | wc -w) images needing processing."
             echo "files_to_process=${UNCONVERTED_FILES}" >> $GITHUB_OUTPUT
           else
             echo "✅ No images to process."
@@ -62,7 +83,8 @@ jobs:
               dir_path=$(dirname "$yaml_file")
               temp_file=$(mktemp)
               while IFS=': ' read -r base_name dimensions; do
-                if [ -f "$dir_path/$base_name.avif" ]; then
+                # 检查是否存在对应的 AVIF 文件（原图或任何尺寸）
+                if [ -f "$dir_path/$base_name.avif" ] || ls "$dir_path/${base_name}_"*"w.avif" >/dev/null 2>&1; then
                   echo "$base_name: $dimensions" >> "$temp_file"
                 fi
               done < "$yaml_file"
@@ -83,88 +105,160 @@ jobs:
           MAX_ATTEMPTS: 5
           POLL_INTERVAL_SECONDS: 30
         run: |
-          PENDING_URLS_STRING=$(echo "$FILES_TO_PROCESS" | tr ' ' '\n' | jq -R . | jq -s 'map("https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/" + .)')
+          # 为每个图片生成多个尺寸的 URL 和参数
+          declare -a url_list
+          declare -a param_list
+          declare -a file_mapping
           
-          for attempt in $(seq 1 $MAX_ATTEMPTS); do
-            if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -eq 0 ]; then
-                echo "🎉 All images processed successfully!"
-                break
+          for file_path in $FILES_TO_PROCESS; do
+            base_url="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/$file_path"
+            
+            # 获取图片尺寸
+            dimensions=$(identify -format "%wx%h" "$file_path")
+            width=$(echo "$dimensions" | cut -d'x' -f1)
+            height=$(echo "$dimensions" | cut -d'x' -f2)
+            
+            echo "📏 Processing $file_path (${width}x${height})"
+            
+            # 定义需要生成的尺寸
+            sizes="480 960 1200 1920 2560 3840"
+            
+            # 添加原图处理（如果不存在对应 AVIF）
+            base_path="${file_path%.*}"
+            if [ ! -f "${base_path}.avif" ]; then
+              url_list+=("$base_url")
+              param_list+=('{
+                "resize": 0,
+                "convertto": "avif"
+              }')
+              file_mapping+=("$file_path:original")
             fi
-
-            echo -e "\n-=================================-\n-   ATTEMPT ${attempt} / ${MAX_ATTEMPTS}\n-   Processing $(echo "$PENDING_URLS_STRING" | jq 'length') images...\n-=================================-\n"
-
-            JSON_PAYLOAD=$(jq -n --arg key "$SHORTPIXEL_KEY" --argjson urls "$PENDING_URLS_STRING" '{
-              key: $key, 
-              plugin_version: "GHA45", 
-              lossy: 2, 
-              wait: 30, 
-              convertto: "avif",
-              urllist: $urls
-            }')
-
-            echo "📞 Calling ShortPixel API..."
             
-            API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
-            
-            echo "✅ API call successful. Processing results..."
-
-            # Process successful conversions
-            echo "$API_RESPONSE" | jq -c '.[] | select(.Status.Code == "2")' | while read -r item; do
-              original_url=$(echo "$item" | jq -r .OriginalURL)
-              original_path=$(echo "$original_url" | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
-              avif_url=$(echo "$item" | jq -r '.AVIFLossyURL // empty')
-              
-              if [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
-                dir_path=$(dirname "$original_path")
-                base_name=$(basename "$original_path" | sed 's/\.[^.]*$//')
-                avif_path="$dir_path/$base_name.avif"
-                echo "    - 📥 Downloading AVIF: $base_name"
+            # 添加各个尺寸的处理
+            for target_width in $sizes; do
+              if [ "$width" -gt "$target_width" ] && [ ! -f "${base_path}_${target_width}w.avif" ]; then
+                # 计算对应的高度，保持宽高比
+                target_height=$((height * target_width / width))
                 
-                curl -fsS --retry 3 -o "$avif_path" "$avif_url"
-                if [ -s "$avif_path" ]; then
-                    dimensions=$(identify -format "%wx%h" "$original_path")
-                    yaml_file="$dir_path/.image_dimensions.yaml"
-                    touch "$yaml_file"
-                    grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
-                    echo "    - ✅ AVIF saved successfully: $base_name"
-                    rm "$original_path"
-                else
-                    echo "    - ❌ AVIF download failed: $base_name"
-                fi
-              else
-                echo "    - ⚠️ AVIFLossyURL not available: $base_name"
+                url_list+=("$base_url")
+                param_list+=('{
+                  "resize": 3,
+                  "resize_width": '$target_width',
+                  "resize_height": '$target_height',
+                  "convertto": "avif"
+                }')
+                file_mapping+=("$file_path:${target_width}w")
+                echo "  - Will generate ${target_width}w version"
               fi
             done
-            
-            # Log processing status
-            echo "$API_RESPONSE" | jq -c '.[] | select(.Status.Code != "2")' | while read -r item; do
-              status_code=$(echo "$item" | jq -r .Status.Code)
-              status_message=$(echo "$item" | jq -r .Status.Message)
-              original_path=$(echo "$item" | jq -r .OriginalURL | sed "s|https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/||")
-              if [ "$status_code" == "1" ]; then
-                echo "    - ⏳ Processing: $(basename "$original_path")"
-              else
-                echo "    - ❌ Error ($status_code): $(basename "$original_path") - $status_message"
-              fi
-            done
-
-            # Update pending URLs
-            NEXT_PENDING_URLS_STRING=$(echo "$API_RESPONSE" | jq '[.[] | select(.Status.Code != "2" or (.AVIFLossyURL == null or .AVIFLossyURL == "NA" or .AVIFLossyURL == "")) | .OriginalURL]')
-            PENDING_URLS_STRING="$NEXT_PENDING_URLS_STRING"
-
-            if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ] && [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-                echo -e "\n\t... waiting ${POLL_INTERVAL_SECONDS} seconds before next attempt ...\n"
-                sleep $POLL_INTERVAL_SECONDS
-            fi
           done
-
-          if [ "$(echo "$PENDING_URLS_STRING" | jq 'length')" -gt 0 ]; then
-              echo "⚠️ WARNING: After ${MAX_ATTEMPTS} attempts, the following images could not be processed:"
-              echo "$PENDING_URLS_STRING" | jq -r '.[]' | sed 's|.*/||'
+          
+          if [ ${#url_list[@]} -eq 0 ]; then
+            echo "✅ All images are already processed!"
+            exit 0
           fi
+          
+          echo "📊 Total conversions to process: ${#url_list[@]}"
+          
+          # 将数组转换为 JSON
+          url_json=$(printf '%s\n' "${url_list[@]}" | jq -R . | jq -s .)
+          param_json=$(printf '%s\n' "${param_list[@]}" | jq -s .)
+          
+          # 分批处理（ShortPixel API 限制每次最多 100 个 URL）
+          batch_size=50
+          total_urls=${#url_list[@]}
+          
+          for ((i=0; i<total_urls; i+=batch_size)); do
+            end=$((i + batch_size - 1))
+            if [ $end -ge $total_urls ]; then
+              end=$((total_urls - 1))
+            fi
+            
+            echo -e "\n🔄 Processing batch $((i/batch_size + 1)): URLs $((i+1)) to $((end+1))"
+            
+            # 创建当前批次的 URL 和参数
+            batch_urls=$(echo "$url_json" | jq ".[$i:$((end+1))]")
+            batch_params=$(echo "$param_json" | jq ".[$i:$((end+1))]")
+            
+            for attempt in $(seq 1 $MAX_ATTEMPTS); do
+              if [ "$(echo "$batch_urls" | jq 'length')" -eq 0 ]; then
+                break
+              fi
+              
+              echo "  Attempt $attempt/$MAX_ATTEMPTS for current batch"
+              
+              JSON_PAYLOAD=$(jq -n \
+                --arg key "$SHORTPIXEL_KEY" \
+                --argjson urls "$batch_urls" \
+                --argjson params "$batch_params" \
+                '{
+                  key: $key,
+                  plugin_version: "GHA45",
+                  lossy: 2,
+                  wait: 30,
+                  urllist: $urls,
+                  paramlist: $params
+                }')
+              
+              API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
+              
+              # 处理成功的转换
+              echo "$API_RESPONSE" | jq -c '.[] | select(.Status.Code == "2")' | while read -r item; do
+                original_url=$(echo "$item" | jq -r .OriginalURL)
+                avif_url=$(echo "$item" | jq -r '.AVIFLossyURL // empty')
+                
+                # 查找对应的文件映射
+                for ((j=0; j<${#url_list[@]}; j++)); do
+                  if [ "${url_list[j]}" = "$original_url" ]; then
+                    mapping="${file_mapping[j]}"
+                    original_file_path=$(echo "$mapping" | cut -d':' -f1)
+                    size_suffix=$(echo "$mapping" | cut -d':' -f2)
+                    
+                    if [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
+                      dir_path=$(dirname "$original_file_path")
+                      base_name=$(basename "$original_file_path" | sed 's/\.[^.]*$//')
+                      
+                      if [ "$size_suffix" = "original" ]; then
+                        avif_path="$dir_path/$base_name.avif"
+                        echo "    - ✅ Downloaded original AVIF: $base_name.avif"
+                      else
+                        avif_path="$dir_path/${base_name}_${size_suffix}.avif"
+                        echo "    - ✅ Downloaded resized AVIF: ${base_name}_${size_suffix}.avif"
+                      fi
+                      
+                      curl -fsS --retry 3 -o "$avif_path" "$avif_url"
+                      
+                      # 只有原图需要记录尺寸和删除源文件
+                      if [ "$size_suffix" = "original" ] && [ -s "$avif_path" ]; then
+                        dimensions=$(identify -format "%wx%h" "$original_file_path")
+                        yaml_file="$dir_path/.image_dimensions.yaml"
+                        touch "$yaml_file"
+                        grep -q "${base_name}:" "$yaml_file" && sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file" || echo "${base_name}: ${dimensions}" >> "$yaml_file"
+                        rm "$original_file_path"
+                      fi
+                    fi
+                    break
+                  fi
+                done
+              done
+              
+              # 更新待处理的批次
+              next_batch_urls=$(echo "$API_RESPONSE" | jq '[.[] | select(.Status.Code != "2" or (.AVIFLossyURL == null or .AVIFLossyURL == "NA" or .AVIFLossyURL == "")) | .OriginalURL]')
+              batch_urls="$next_batch_urls"
+              
+              if [ "$(echo "$batch_urls" | jq 'length')" -eq 0 ]; then
+                break
+              fi
+              
+              if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+                echo "    Waiting ${POLL_INTERVAL_SECONDS}s before retry..."
+                sleep $POLL_INTERVAL_SECONDS
+              fi
+            done
+          done
 
       - name: '🚀 Commit and Push Changes'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: 'build(media): Convert bundle images to AVIF'
+          commit_message: 'build(media): Convert images to multi-size AVIF'
           commit_author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>

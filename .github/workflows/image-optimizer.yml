@@ -166,33 +166,51 @@ jobs:
               
               echo "    Processing $size_suffix..."
               
-              # 构建API参数
-              if [ "$size_suffix" = "original" ]; then
-                json_params='{"resize": 0, "convertto": "avif"}'
-                output_file="${base_path}.avif"
-              else
-                json_params="{\"resize\": 3, \"resize_width\": $target_w, \"resize_height\": $target_h, \"convertto\": \"avif\"}"
-                output_file="${base_path}_${size_suffix}.avif"
-              fi
-              
               # 重试机制
               success=false
               for attempt in $(seq 1 $MAX_ATTEMPTS); do
                 echo "      Attempt $attempt/$MAX_ATTEMPTS"
                 
-                JSON_PAYLOAD=$(jq -n \
-                  --arg key "$SHORTPIXEL_KEY" \
-                  --arg url "$url" \
-                  --argjson params "$json_params" \
-                  '{
-                    key: $key,
-                    plugin_version: "GHA45",
-                    lossy: 2,
-                    wait: 20,
-                    urllist: [$url],
-                    paramlist: [$params]
-                  }')
+                # 构建API payload，根据不同类型使用不同参数
+                if [ "$size_suffix" = "original" ]; then
+                  JSON_PAYLOAD=$(jq -n \
+                    --arg key "$SHORTPIXEL_KEY" \
+                    --arg url "$url" \
+                    '{
+                      key: $key,
+                      plugin_version: "GHA45",
+                      lossy: 2,
+                      wait: 20,
+                      urllist: [$url],
+                      paramlist: [{
+                        resize: 0,
+                        convertto: "avif"
+                      }]
+                    }')
+                  output_file="${base_path}.avif"
+                else
+                  JSON_PAYLOAD=$(jq -n \
+                    --arg key "$SHORTPIXEL_KEY" \
+                    --arg url "$url" \
+                    --argjson target_w "$target_w" \
+                    --argjson target_h "$target_h" \
+                    '{
+                      key: $key,
+                      plugin_version: "GHA45",
+                      lossy: 2,
+                      wait: 20,
+                      urllist: [$url],
+                      paramlist: [{
+                        resize: 3,
+                        resize_width: $target_w,
+                        resize_height: $target_h,
+                        convertto: "avif"
+                      }]
+                    }')
+                  output_file="${base_path}_${size_suffix}.avif"
+                fi
                 
+                # 调用 API
                 API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
                 
                 # 检查响应

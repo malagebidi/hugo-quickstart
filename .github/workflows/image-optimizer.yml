@@ -9,7 +9,7 @@ on:
       - 'content/**/*.png'
       - 'content/**/*.jpeg'
       - 'content/**/*.avif'
-  
+ 
   schedule:
     - cron: '0 0 * * *'
     
@@ -255,7 +255,7 @@ jobs:
               fi
             done
           done
-            
+          
           # 统一处理所有成功转换的原始文件
           echo -e "\n🗑️ Cleaning up successfully processed original files..."
           for original_file in "${!processed_originals[@]}"; do
@@ -294,13 +294,26 @@ jobs:
               temp_file=$(mktemp)
               cleaned_count=0
               
-              while IFS=': ' read -r base_name dimensions; do
-                # 跳过空行
-                if [ -z "$base_name" ]; then
+              # --- START OF FIX ---
+              # 使用更健壮的循环来读取文件，确保能处理各种格式和没有结尾换行符的文件
+              while IFS= read -r line || [[ -n "$line" ]]; do
+                # 跳过空行或不包含冒号的无效行
+                if [[ -z "$line" ]] || ! [[ "$line" =~ : ]]; then
                   continue
                 fi
 
-                # 检查是否存在对应的AVIF文件
+                # 健壮地解析 "key: value"
+                # 提取冒号前的所有内容作为 base_name，并去除首尾空格
+                base_name=$(echo "$line" | sed -e 's/:.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+                dimensions=$(echo "$line" | sed 's/.*:[[:space:]]*//')
+
+                # 如果 base_name 为空，则跳过
+                if [ -z "$base_name" ]; then
+                  continue
+                fi
+              # --- END OF FIX ---
+
+                # 检查是否存在对应的AVIF文件 (这部分逻辑是正确的)
                 has_avif_files=false
 
                 # 检查原始尺寸的AVIF
@@ -325,7 +338,7 @@ jobs:
                   echo "  - 🗑️ Removed orphaned entry: $base_name"
                   cleaned_count=$((cleaned_count + 1))
                 fi
-              done < "$yaml_file"
+              done < "$yaml_file" # 读取原始文件
 
               # 替换原文件
               if [ -s "$temp_file" ]; then
@@ -341,7 +354,7 @@ jobs:
               fi
             fi
           done
-    
+      
       - name: '🚀 Commit and Push Changes'
         run: |
           git config --global user.name 'GitHub Actions Bot'
@@ -350,7 +363,7 @@ jobs:
           # 拉取最新更改
           git fetch origin
           git rebase origin/main || true
-        
+          
           echo "🔍 Checking for changes..."
 
           # 添加所有AVIF文件和dimension文件

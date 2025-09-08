@@ -25,7 +25,6 @@
   {{ end }}
   {{ $pagePath = printf "%s/" $pagePath }}
 {{ end }}
-
 {{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
 
 {{/* Debug info - remove this in production */}}
@@ -36,10 +35,14 @@
   {{ $dimensionsContent := readFile $dimensionsFilePath }}
   {{ if $dimensionsContent }}
     {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
-    {{ with $dimensionsData.dimensions }}
-      {{ with (index . $src) }}
-        {{ $width = .width }}
-        {{ $height = .height }}
+    {{/* New format: direct key-value pairs instead of nested structure */}}
+    {{ with (index $dimensionsData $src) }}
+      {{/* Parse the "widthxheight" format */}}
+      {{ $dimensionStr := . }}
+      {{ $parts := split $dimensionStr "x" }}
+      {{ if eq (len $parts) 2 }}
+        {{ $width = index $parts 0 }}
+        {{ $height = index $parts 1 }}
         {{ $dimensionsFound = true }}
       {{ end }}
     {{ end }}

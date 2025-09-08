@@ -99,6 +99,7 @@ jobs:
           # 用于跟踪已处理的原始文件
           declare -A processed_originals
           declare -A file_dimensions
+          declare -A removed_originals
           
           # 首先获取所有文件的尺寸信息
           for file_path in $FILES_TO_PROCESS; do
@@ -273,14 +274,17 @@ jobs:
                 else
                   echo "${base_name}: ${dimensions}" >> "$yaml_file"
                 fi
-                
+
+                # 删除原始文件
                 rm "$original_file"
                 echo "  - ✅ Removed: $(basename "$original_file") (${dimensions})"
+                removed_originals["${dir_path}/${base_name}"]="${dimensions}"
               else
                 echo "  - ⚠️ No AVIF files found for: $(basename "$original_file"), keeping original"
               fi
             fi
           done
+          
       - name: '🧹 Clean up orphaned dimensions'
         run: |
           echo "🧹 Cleaning up orphaned dimension entries..."
@@ -288,15 +292,52 @@ jobs:
             if [ -f "$yaml_file" ]; then
               dir_path=$(dirname "$yaml_file")
               temp_file=$(mktemp)
+              cleaned_count=0
+              
               while IFS=': ' read -r base_name dimensions; do
-                if [ -f "$dir_path/$base_name.avif" ] || ls "$dir_path/${base_name}_"*"w.avif" >/dev/null 2>&1; then
+                # 跳过空行
+                if [ -z "$base_name" ]; then
+                  continue
+                fi
+
+                # 检查是否存在对应的AVIF文件
+                has_avif_files=false
+
+                # 检查原始尺寸的AVIF
+                if [ -f "$dir_path/$base_name.avif" ]; then
+                  has_avif_files=true
+                fi
+
+                # 检查各种尺寸的AVIF
+                if [ "$has_avif_files" = "false" ]; then
+                  for size in 480 960 1200 1920 2560 3840; do
+                    if [ -f "$dir_path/${base_name}_${size}w.avif" ]; then
+                      has_avif_files=true
+                      break
+                    fi
+                  done
+                fi
+
+                # 如果存在AVIF文件，保留维度信息
+                if [ "$has_avif_files" = "true" ]; then
                   echo "$base_name: $dimensions" >> "$temp_file"
+                else
+                  echo "  - 🗑️ Removed orphaned entry: $base_name"
+                  cleaned_count=$((cleaned_count + 1))
                 fi
               done < "$yaml_file"
-              mv "$temp_file" "$yaml_file"
-              
-              if [ ! -s "$yaml_file" ]; then
-                rm "$yaml_file"
+
+              # 替换原文件
+              if [ -s "$temp_file" ]; then
+                mv "$temp_file" "$yaml_file"
+                echo "  - ✅ Updated: $(basename "$yaml_file")"
+              else
+                rm "$temp_file" "$yaml_file"
+                echo "  - 🗑️ Removed empty: $(basename "$yaml_file")"
+              fi
+
+              if [ "$cleaned_count" -gt 0 ]; then
+                echo "  - 📊 Cleaned $cleaned_count orphaned entries from $(basename "$yaml_file")"
               fi
             fi
           done

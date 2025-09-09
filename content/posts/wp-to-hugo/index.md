@@ -7,4 +7,4 @@ draft: false
 
 为什么从WordPress转到Hugo呢？我还记得至少15年前
 
-{{< image src="IMG_20250729_194125" alt="占位符" >}}
+{{< image src="IMG_20250622_172018" alt="占位符" >}}

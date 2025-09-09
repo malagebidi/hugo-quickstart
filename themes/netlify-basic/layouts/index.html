@@ -1,9 +1,8 @@
 {{ define "main" }}
 <tt>
-  {{/* 页眉部分：显示网站标题和导航链接 */}}
-  <b><a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></b>
-  {{ with .Site.GetPage "contact.md" }}<a href="{{ .RelPermalink }}">Contact</a> |{{ end }}
-  {{ with .Site.GetPage "about.md" }}<a href="{{ .RelPermalink }}">About</a>{{ end }}
+  <nav>
+    <b><a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></b>
+  </nav>
 
   <hr>
 

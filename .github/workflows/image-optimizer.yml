@@ -56,7 +56,7 @@ jobs:
                 needs_processing=false
                 
                 # 定义需要的尺寸
-                sizes="480 960 1200 1920 2560 3840"
+                sizes="480 720 960 1440 1920 2880 3840"
                 
                 # 检查原图本身的 AVIF（只有宽度<=3840的才需要原图AVIF）
                 if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
@@ -131,7 +131,7 @@ jobs:
             echo "  Original dimensions: ${width}x${height}"
             
             # 定义需要生成的尺寸
-            sizes="480 960 1200 1920 2560 3840"
+            sizes="480 720 960 1440 1920 2880 3840"
             
             # 检查原图处理（只有宽度<=3840且不存在对应AVIF的才处理）
             if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
@@ -323,7 +323,7 @@ jobs:
 
                 # 检查各种尺寸的AVIF
                 if [ "$has_avif_files" = "false" ]; then
-                  for size in 480 960 1200 1920 2560 3840; do
+                  for size in 480 720 960 1440 1920 2880 3840; do
                     if [ -f "$dir_path/${base_name}_${size}w.avif" ]; then
                       has_avif_files=true
                       break

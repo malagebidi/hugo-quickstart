@@ -18,7 +18,7 @@
   {{ range $i, $group := $groupedPages }}
     {{/* 遍历该年份下的所有文章 */}}
     {{ range .Pages }}
-      <font>{{ .Date.Format "01/02/2006" }}</font> <a href="{{ .RelPermalink }}">
+      {{ .Date.Format "2006/01/02" }} <a href="{{ .RelPermalink }}">
         {{/*
           如果文章的 front matter 中有 is_concept: true 参数，
           标题将以斜体显示。

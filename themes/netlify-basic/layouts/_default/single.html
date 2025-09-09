@@ -1,8 +1,10 @@
 {{ define "main" }}
 <tt>
-  <b><a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></b>
-  {{ with .Site.GetPage "contact.md" }}<a href="{{ .RelPermalink }}">Contact</a> |{{ end }}
-  {{ with .Site.GetPage "about.md" }}<a href="{{ .RelPermalink }}">About</a>{{ end }}
+  <nav>
+    <b><a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></b>
+    {{ with .Site.GetPage "contact.md" }}<a href="{{ .RelPermalink }}">Contact</a> |{{ end }}
+    {{ with .Site.GetPage "about.md" }}<a href="{{ .RelPermalink }}">About</a>{{ end }}
+  </nav>
 
   <hr>
 
@@ -15,5 +17,6 @@
   <footer>包容是自由的基础。</footer>
 </tt>
 {{ end }}
+
 
 

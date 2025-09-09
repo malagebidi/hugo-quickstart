@@ -6,20 +6,17 @@
 
   <hr>
 
-  <b>{{ .Title }}</b>
+  <h1>{{ .Title }}</h1>  
   <br><br>
 
   {{ .Content }}
 
   <hr>
 
-  {{ $pages := (where .Site.RegularPages "Type" "in" .Site.Params.mainSections).ByDate.Reverse }}
-  {{ if $pages }}
-    {{ $latestPage := index $pages 0 }}
-    包容是自由的基础。
-  {{ end }}
+  <footer>包容是自由的基础。</footer>
 </tt>
 {{ end }}
+
 
 
 

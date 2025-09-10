@@ -80,6 +80,7 @@
   {{ if $dimensionsFound }}
     {{ $largestSize = $width }}
     {{ $srcset = $srcset | append (printf "%s %sw" $originalAvifResource.RelPermalink $width) }}
+    {{ $availableSizes = $availableSizes | append $width }}
   {{ end }}
 {{ else if gt (len $availableSizes) 0 }}
   {{/* Use largest available size as main src */}}
@@ -92,13 +93,34 @@
   {{ end }}
 {{ end }}
 
+{{/* Generate dynamic sizes attribute based on available sizes */}}
+{{ $sizesAttr := "" }}
+{{ if gt (len $availableSizes) 0 }}
+  {{ $sortedSizes := sort $availableSizes }}
+  {{ $sizeRules := slice }}
+  
+  {{ range $i, $size := $sortedSizes }}
+    {{ if lt $i (sub (len $sortedSizes) 1) }}
+      {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
+    {{ end }}
+  {{ end }}
+  
+  {{/* Add the largest size as the default */}}
+  {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
+  {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
+  
+  {{ $sizesAttr = delimit $sizeRules ", " }}
+{{ end }}
+
 {{/* If we have AVIF files, render the optimized image */}}
 {{ if $mainSrc }}
   <img 
     src="{{ $mainSrc }}" 
     {{ if gt (len $srcset) 0 }}
     srcset="{{ delimit $srcset ", " }}"
-    sizes="(max-width: 480px) 480px, (max-width: 720px) 720px, (max-width: 960px) 960px, (max-width: 1440px) 1440px, (max-width: 1920px) 1920px, (max-width: 2880px) 2880px, 3840px"
+    {{ if $sizesAttr }}
+    sizes="{{ $sizesAttr }}"
+    {{ end }}
     {{ end }}
     alt="{{ $alt }}" 
     {{ with $class }}class="{{ . }}" {{ end }}

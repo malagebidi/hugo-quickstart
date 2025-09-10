@@ -5,6 +5,12 @@ theme: "netlify-basic"
 timeZone: "Asia/Shanghai" 
 disableHugoGeneratorInject: true 
 uglyURLs: true
+
+ignoreFiles:
+  - "\\.jpg$"
+  - "\\.jpeg$"
+  - "\\.png$"
+
 permalinks:
   posts: /:slug/
   pages: /:slug/
@@ -27,3 +33,4 @@ outputFormats:
   AVIF:
     mediaType: "image/avif"
     isPlainText: false
+

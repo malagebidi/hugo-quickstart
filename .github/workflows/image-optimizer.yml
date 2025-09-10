@@ -49,7 +49,7 @@ jobs:
             base_path="${file%.*}"
             
             # Use 'file' command to get dimensions - a lightweight alternative
-            dimensions_str=$(file "$file" | grep -oP '\d{2,}x\d{2,}' || true)
+            dimensions_str=$(file "$file" | grep -oP '\d{2,}\s*x\s*\d{2,}' || true)
             if [[ -z "$dimensions_str" ]]; then
                 echo "⚠️ Could not determine dimensions for $file. Skipping."
                 continue
@@ -58,6 +58,7 @@ jobs:
             # In some cases, `file` might output multiple dimensions. We take the first one.
             dimensions=$(echo "$dimensions_str" | head -n 1 | tr -d ' ')
             width=$(echo "$dimensions" | cut -d'x' -f1)
+            height=$(echo "$dimensions" | cut -d'x' -f2)
             
             # Check if processing is needed
             needs_processing=false

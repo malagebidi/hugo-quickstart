@@ -3,19 +3,14 @@
   <nav>
     <b>{{ .Site.Title }}</b>
   </nav>
-
   <hr>
-
   {{ $pages := (where .Site.RegularPages "Type" "in" .Site.Params.mainSections).ByDate.Reverse }}
-
   {{ range $pages }}
     {{ .Date.Format "2006/01/02" }} <a href="{{ .RelPermalink }}">
       {{ .Title }}
     </a><br>
   {{ end }}
-
   <hr>
-
   <footer>© {{ now.Format "2006" }} {{ .Site.Title }}</footer>
   </tt>
 {{ end }}

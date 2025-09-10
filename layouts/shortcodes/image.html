@@ -53,7 +53,7 @@
 
 {{/* Build srcset for different sizes */}}
 {{ $srcset := slice }}
-{{ $sizes := slice "480" "960" "1200" "1920" "2560" "3840" }}
+{{ $sizes := slice "480" "720" "960" "1440" "1920" "2880" "3840" }}
 {{ $availableSizes := slice }}
 
 {{/* Check what AVIF sizes are available */}}
@@ -98,7 +98,7 @@
     src="{{ $mainSrc }}" 
     {{ if gt (len $srcset) 0 }}
     srcset="{{ delimit $srcset ", " }}"
-    sizes="(max-width: 480px) 480px, (max-width: 960px) 960px, (max-width: 1200px) 1200px, (max-width: 1920px) 1920px, (max-width: 2560px) 2560px, 3840px"
+    sizes="(max-width: 480px) 480px, (max-width: 720px) 720px, (max-width: 960px) 960px, (max-width: 1440px) 1440px, (max-width: 1920px) 1920px, (max-width: 2880px) 2880px, 3840px"
     {{ end }}
     alt="{{ $alt }}" 
     {{ with $class }}class="{{ . }}" {{ end }}

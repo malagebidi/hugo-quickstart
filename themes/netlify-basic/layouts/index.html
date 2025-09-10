@@ -18,21 +18,7 @@
     {{/* 遍历该年份下的所有文章 */}}
     {{ range .Pages }}
       {{ .Date.Format "2006/01/02" }} <a href="{{ .RelPermalink }}">
-        {{/*
-          如果文章的 front matter 中有 is_concept: true 参数，
-          标题将以斜体显示。
-          例如：
-          ---
-          title: "Concept Of Colors"
-          date: 2023-06-14
-          is_concept: true
-          ---
-        */}}
-        {{ if .Params.is_concept }}
-          <i>{{ .Title }}</i>
-        {{ else }}
-          {{ .Title }}
-        {{ end }}
+        {{ .Title }}
       </a><br>
     {{ end }}
 
@@ -41,9 +27,5 @@
       <hr>
     {{ end }}
   {{ end }}
-
-  <hr>
-
-  <footer>包容是自由的基础</footer>
   </tt>
 {{ end }}

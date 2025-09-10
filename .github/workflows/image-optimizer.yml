@@ -45,11 +45,11 @@ jobs:
           FILES_TO_PROCESS=""
           
           # Use a more robust 'while read' loop to handle file paths
-          find content -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) -print0 | while IFS= read -r -d $'\0' file; do
+          while IFS= read -r -d '' file; do
             base_path="${file%.*}"
             
             # Use 'file' command to get dimensions - a lightweight alternative
-            dimensions_str=$(file "$file" | grep -oP '\d{2,}x\d{2,}')
+            dimensions_str=$(file "$file" | grep -oP '\d{2,}x\d{2,}' || true)
             if [[ -z "$dimensions_str" ]]; then
                 echo "⚠️ Could not determine dimensions for $file. Skipping."
                 continue
@@ -83,7 +83,7 @@ jobs:
             if [ "$needs_processing" = "true" ]; then
               FILES_TO_PROCESS="$FILES_TO_PROCESS $file"
             fi
-          done
+          done < <(find content -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) -print0)
           
           # Output the results
           if [ -n "$FILES_TO_PROCESS" ]; then

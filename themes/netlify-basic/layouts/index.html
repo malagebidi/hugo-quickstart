@@ -6,21 +6,12 @@
 
   <hr>
 
-  {{/* 文章列表部分 */}}
-  {{/* 筛选主要部分的文章，并按日期倒序排列 */}}
   {{ $pages := (where .Site.RegularPages "Type" "in" .Site.Params.mainSections).ByDate.Reverse }}
-  {{/* 按年份对文章进行分组 */}}
-  {{ $groupedPages := $pages.GroupByDate "2006" }}
-  {{ $numGroups := len $groupedPages }}
 
-  {{/* 遍历每个年份的分组 */}}
-  {{ range $i, $group := $groupedPages }}
-    {{/* 遍历该年份下的所有文章 */}}
-    {{ range .Pages }}
-      {{ .Date.Format "2006/01/02" }} <a href="{{ .RelPermalink }}">
-        {{ .Title }}
-      </a><br>
-    {{ end }}
+  {{ range .Pages }}
+    {{ .Date.Format "2006/01/02" }} <a href="{{ .RelPermalink }}">
+      {{ .Title }}
+    </a><br>
   {{ end }}
 
   <hr>

@@ -7,5 +7,7 @@
   <main>
     {{ .Content }}
   </main>
+  <hr>
+  <footer>© {{ now.Format "2006" }} {{ .Site.Title }}</footer>
 </tt>
 {{ end }}

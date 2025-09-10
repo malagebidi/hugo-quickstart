@@ -30,6 +30,6 @@ Thumbs.db
 *.sublime-project
 
 # Large original image files (keep optimized AVIF)
-content/**/*.jpg
-content/**/*.jpeg
-content/**/*.png
+*.jpg
+*.jpeg
+*.png

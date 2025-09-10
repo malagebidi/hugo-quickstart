@@ -1,15 +1,17 @@
 {{ define "main" }}
 <tt>
   <nav>
-    <b>{{ .Title }}</b>
+    <b><a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></b>
   </nav>
   <hr>
   <main>
+    <h1>{{ .Title }}</h1>
     {{ .Content }}
   </main>
   <hr>
   <footer><a href="{{ .Site.BaseURL }}">..</a></footer>
 </tt>
 {{ end }}
+
 
 

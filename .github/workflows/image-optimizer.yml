@@ -52,30 +52,18 @@ jobs:
                 dimensions=$(identify -format "%wx%h" "$file" 2>/dev/null || echo "0x0")
                 width=$(echo "$dimensions" | cut -d'x' -f1)
                 
-                # 检查是否需要处理
-                needs_processing=false
-                
                 # 定义需要的尺寸
                 sizes="480 720 960 1440 1920 2880 3840"
                 
-                # 检查原图本身的 AVIF（只有宽度<=3840的才需要原图AVIF）
-                if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
-                  needs_processing=true
-                fi
                 
                 # 检查各个尺寸的 AVIF
-                if [ "$needs_processing" = "false" ]; then
-                  for size in $sizes; do
-                    if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
-                      needs_processing=true
-                      break
-                    fi
-                  done
-                fi
+                for size in $sizes; do
+                  if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
+                    break
+                  fi
+                done
                 
-                if [ "$needs_processing" = "true" ]; then
-                  FILES_TO_PROCESS="$FILES_TO_PROCESS $file"
-                fi
+                FILES_TO_PROCESS="$FILES_TO_PROCESS $file"
               fi
             done
           done

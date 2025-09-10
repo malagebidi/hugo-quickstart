@@ -7,7 +7,6 @@ on:
       - 'content/**/*.jpg'
       - 'content/**/*.png'
       - 'content/**/*.jpeg'
-      - 'content/**/*.avif'
  
   schedule:
     - cron: '0 0 * * *'

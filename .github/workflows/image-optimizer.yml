@@ -85,7 +85,6 @@ jobs:
           # 用于跟踪已处理的原始文件
           declare -A processed_originals
           declare -A file_dimensions
-          declare -A removed_originals
           
           # 首先获取所有文件的尺寸信息
           for file_path in $FILES_TO_PROCESS; do

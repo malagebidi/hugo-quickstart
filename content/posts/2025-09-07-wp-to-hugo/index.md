@@ -5,7 +5,7 @@ date: 2025-09-07T06:05:00
 draft: false
 ---
 
-为什么是WordPress，为什么又转到Hugo，这篇文章将是一个大回溯。
+为什么是WordPress，为什么又转到Hugo，这篇文章将是一个历史大回溯。
 
 {{< image src="fatalfury_logo_togo" alt="占位符" >}}
 

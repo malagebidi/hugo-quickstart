@@ -136,7 +136,8 @@
     {{ end }}
     {{ if eq $lazy "true" }}
     loading="lazy"
-    {{ end }}>
+    {{ end }}
+    decoding="async">
 {{ else }}
   <p style="color: red;">
     <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }})

@@ -1,4 +1,3 @@
-# 文件路径: .github/workflows/image-optimizer.yml
 name: '🤖 Optimize Bundle Images with ShortPixel'
 on:
   push:

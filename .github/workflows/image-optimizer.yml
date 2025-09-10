@@ -275,9 +275,6 @@ jobs:
                   echo "${base_name}: ${dimensions}" >> "$yaml_file"
                 fi
 
-                # 删除原始文件
-                rm "$original_file"
-                echo "  - ✅ Removed: $(basename "$original_file") (${dimensions})"
                 removed_originals["${dir_path}/${base_name}"]="${dimensions}"
               else
                 echo "  - ⚠️ No AVIF files found for: $(basename "$original_file"), keeping original"

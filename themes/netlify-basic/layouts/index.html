@@ -21,11 +21,6 @@
         {{ .Title }}
       </a><br>
     {{ end }}
-
-    {{/* 在分组之间添加水平线，但最后一组后面不加 */}}
-    {{ if lt (add $i 1) $numGroups }}
-      <hr>
-    {{ end }}
   {{ end }}
 
   <hr>

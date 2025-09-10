@@ -32,7 +32,7 @@ jobs:
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
-          git pull origin main || true
+          git pull origin main --rebase || true
 
       - name: '🔧 Install Dependencies'
         # We only need jq now, as 'file' is pre-installed.
@@ -42,52 +42,47 @@ jobs:
         id: find_files
         run: |
           echo "🔍 Finding images that need conversion..."
-          
           FILES_TO_PROCESS=""
           
-          # Using a for loop to iterate over extensions
-          for ext in jpg jpeg png; do
-            for file in $(find content -type f -name "*.${ext}" 2>/dev/null || true); do
-              if [ -f "$file" ]; then
-                base_path="${file%.*}"
-                
-                # Use 'file' command to get dimensions - a lightweight alternative
-                dimensions_str=$(file "$file" | grep -oP '\d{2,}x\d{2,}')
-                if [[ -z "$dimensions_str" ]]; then
-                    echo "⚠️ Could not determine dimensions for $file. Skipping."
-                    continue
-                fi
+          # Use a more robust 'while read' loop to handle file paths
+          find content -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" \) -print0 | while IFS= read -r -d $'\0' file; do
+            base_path="${file%.*}"
+            
+            # Use 'file' command to get dimensions - a lightweight alternative
+            dimensions_str=$(file "$file" | grep -oP '\d{2,}x\d{2,}')
+            if [[ -z "$dimensions_str" ]]; then
+                echo "⚠️ Could not determine dimensions for $file. Skipping."
+                continue
+            fi
 
-                # In some cases, `file` might output multiple dimensions. We take the first one.
-                dimensions=$(echo "$dimensions_str" | head -n 1 | tr -d ' ')
-                width=$(echo "$dimensions" | cut -d'x' -f1)
-                
-                # Check if processing is needed
-                needs_processing=false
-                
-                # Define required sizes
-                sizes="480 720 960 1440 1920 2880 3840"
-                
-                # Check for original AVIF (only if width <= 3840)
-                if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
+            # In some cases, `file` might output multiple dimensions. We take the first one.
+            dimensions=$(echo "$dimensions_str" | head -n 1 | tr -d ' ')
+            width=$(echo "$dimensions" | cut -d'x' -f1)
+            
+            # Check if processing is needed
+            needs_processing=false
+            
+            # Define required sizes
+            sizes="480 720 960 1440 1920 2880 3840"
+            
+            # Check for original AVIF (only if width <= 3840)
+            if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
+              needs_processing=true
+            fi
+            
+            # Check for resized AVIFs
+            if [ "$needs_processing" = "false" ]; then
+              for size in $sizes; do
+                if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
                   needs_processing=true
+                  break
                 fi
-                
-                # Check for resized AVIFs
-                if [ "$needs_processing" = "false" ]; then
-                  for size in $sizes; do
-                    if [ "$width" -gt "$size" ] && [ ! -f "${base_path}_${size}w.avif" ]; then
-                      needs_processing=true
-                      break
-                    fi
-                  done
-                fi
-                
-                if [ "$needs_processing" = "true" ]; then
-                  FILES_TO_PROCESS="$FILES_TO_PROCESS $file"
-                fi
-              fi
-            done
+              done
+            fi
+            
+            if [ "$needs_processing" = "true" ]; then
+              FILES_TO_PROCESS="$FILES_TO_PROCESS $file"
+            fi
           done
           
           # Output the results
@@ -109,7 +104,6 @@ jobs:
         run: |
           declare -A processed_originals
           declare -A file_dimensions
-          declare -A removed_originals
           
           # First, get dimensions for all files to be processed
           for file_path in $FILES_TO_PROCESS; do
@@ -122,7 +116,7 @@ jobs:
               fi
               dimensions=$(echo "$dimensions_str" | head -n 1 | tr -d ' ')
               file_dimensions["$file_path"]="$dimensions"
-              echo "📏 Processing $file_path ($dimensions)"
+              echo "📏 Identified $file_path ($dimensions)"
             fi
           done
           
@@ -137,7 +131,6 @@ jobs:
             base_url="https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/$file_path"
             base_path="${file_path%.*}"
             
-            # Get dimensions from our pre-filled map
             dimensions="${file_dimensions[$file_path]}"
             if [[ -z "$dimensions" ]]; then
                 echo "⚠️ Dimensions not found for $file_path. Skipping."
@@ -155,50 +148,23 @@ jobs:
             if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
               echo "  - Will generate original size AVIF (${width}x${height})"
               
-              echo "    Processing original..."
+              # ... [API call logic remains the same] ...
               success=false
               for attempt in $(seq 1 $MAX_ATTEMPTS); do
-                echo "      Attempt $attempt/$MAX_ATTEMPTS"
-                
-                JSON_PAYLOAD='{
-                  "key": "'$SHORTPIXEL_KEY'", "plugin_version": "GHA45", "lossy": 2, "wait": 20,
-                  "urllist": ["'$base_url'"],
-                  "paramlist": [{"resize": 0, "convertto": "avif"}]
-                }'
-                
+                # ... API call ...
+                JSON_PAYLOAD='{ "key": "'$SHORTPIXEL_KEY'", "plugin_version": "GHA45", "lossy": 2, "wait": 20, "urllist": ["'$base_url'"], "paramlist": [{"resize": 0, "convertto": "avif"}] }'
                 API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
-                
                 if [ -n "$API_RESPONSE" ] && echo "$API_RESPONSE" | jq empty 2>/dev/null; then
-                  status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
-                  avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
-                  
+                  status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty'); avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
                   if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
                     if curl -fsS --retry 2 -o "${base_path}.avif" "$avif_url"; then
-                      echo "      ✅ Successfully generated: $(basename "${base_path}.avif")"
-                      processed_originals["$file_path"]=1
-                      success=true
-                      break
-                    else
-                      echo "      ❌ Failed to download from: $avif_url"
-                    fi
-                  else
-                    echo "      ❌ API failed with status: $status_code"
-                    if [ -n "$API_RESPONSE" ]; then echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"')
-                    fi
-                  fi
-                else
-                  echo "      ❌ Invalid API response"
-                fi
-                
-                if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-                  echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."
-                  sleep $POLL_INTERVAL_SECONDS
-                fi
+                      echo "      ✅ Successfully generated: $(basename "${base_path}.avif")"; processed_originals["$file_path"]=1; success=true; break
+                    else echo "      ❌ Failed to download from: $avif_url"; fi
+                  else echo "      ❌ API failed with status: $status_code"; if [ -n "$API_RESPONSE" ]; then echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"') fi; fi
+                else echo "      ❌ Invalid API response"; fi
+                if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."; sleep $POLL_INTERVAL_SECONDS; fi
               done
-              
-              if [ "$success" != "true" ]; then
-                echo "      ⚠️ Failed to generate original after $MAX_ATTEMPTS attempts"
-              fi
+              if [ "$success" != "true" ]; then echo "      ⚠️ Failed to generate original after $MAX_ATTEMPTS attempts"; fi
             elif [ "$width" -gt 3840 ]; then
               echo "  - Skipping original size AVIF (${width}x${height} > 3840w limit)"
             fi
@@ -209,78 +175,43 @@ jobs:
                 target_height=$((height * target_width / width))
                 echo "  - Will generate ${target_width}w version (${target_width}x${target_height})"
                 
-                echo "    Processing ${target_width}w..."
+                # ... [API call logic remains the same] ...
                 success=false
                 for attempt in $(seq 1 $MAX_ATTEMPTS); do
-                  echo "      Attempt $attempt/$MAX_ATTEMPTS"
-                  
-                  JSON_PAYLOAD='{
-                    "key": "'$SHORTPIXEL_KEY'", "plugin_version": "GHA45", "lossy": 2, "wait": 20,
-                    "urllist": ["'$base_url'"],
-                    "paramlist": [{"resize": 3, "resize_width": '$target_width', "resize_height": '$target_height', "convertto": "avif"}]
-                  }'
-                  
+                  # ... API Call ...
+                  JSON_PAYLOAD='{ "key": "'$SHORTPIXEL_KEY'", "plugin_version": "GHA45", "lossy": 2, "wait": 20, "urllist": ["'$base_url'"], "paramlist": [{"resize": 3, "resize_width": '$target_width', "resize_height": '$target_height', "convertto": "avif"}] }'
                   API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
-                  
                   if [ -n "$API_RESPONSE" ] && echo "$API_RESPONSE" | jq empty 2>/dev/null; then
-                    status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
-                    avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
-                    
+                    status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty'); avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
                     if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
                       output_file="${base_path}_${target_width}w.avif"
                       if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
-                        echo "      ✅ Successfully generated: $(basename "$output_file")"
-                        success=true
-                        break
-                      else
-                        echo "      ❌ Failed to download from: $avif_url"
-                      fi
-                    else
-                      echo "      ❌ API failed with status: $status_code"
-                      if [ -n "$API_RESPONSE" ]; then echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"')
-                      fi
-                    fi
-                  else
-                    echo "      ❌ Invalid API response"
-                  fi
-                  
-                  if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-                    echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."
-                    sleep $POLL_INTERVAL_SECONDS
-                  fi
+                        echo "      ✅ Successfully generated: $(basename "$output_file")"; success=true; processed_originals["$file_path"]=1; break
+                      else echo "      ❌ Failed to download from: $avif_url"; fi
+                    else echo "      ❌ API failed with status: $status_code"; if [ -n "$API_RESPONSE" ]; then echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"') fi; fi
+                  else echo "      ❌ Invalid API response"; fi
+                  if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."; sleep $POLL_INTERVAL_SECONDS; fi
                 done
-                
-                if [ "$success" != "true" ]; then
-                  echo "      ⚠️ Failed to generate ${target_width}w after $MAX_ATTEMPTS attempts"
-                fi
+                if [ "$success" != "true" ]; then echo "      ⚠️ Failed to generate ${target_width}w after $MAX_ATTEMPTS attempts"; fi
               fi
             done
           done
           
-          # Clean up original files that were successfully processed
-          echo -e "\n🗑️ Cleaning up successfully processed original files..."
+          # Record dimensions for successfully processed files
+          echo -e "\n✍️ Recording dimensions for processed files..."
           for original_file in "${!processed_originals[@]}"; do
             if [ -f "$original_file" ]; then
-              base_path="${original_file%.*}"
-              if [ -f "${base_path}.avif" ] || ls "${base_path}_"*"w.avif" >/dev/null 2>&1; then
-                dimensions="${file_dimensions[$original_file]}"
-                dir_path=$(dirname "$original_file")
-                base_name=$(basename "$original_file" | sed 's/\.[^.]*$//')
-                yaml_file="$dir_path/.image_dimensions.yaml"
-                touch "$yaml_file"
-                if grep -q "${base_name}:" "$yaml_file" 2>/dev/null; then
-                  sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
-                else
-                  echo "${base_name}: ${dimensions}" >> "$yaml_file"
-                fi
-                
-                # Remove the original file
-                rm "$original_file"
-                echo "  - ✅ Removed: $(basename "$original_file") (${dimensions})"
-                removed_originals["${dir_path}/${base_name}"]="${dimensions}"
+              dimensions="${file_dimensions[$original_file]}"
+              dir_path=$(dirname "$original_file")
+              base_name=$(basename "$original_file" | sed 's/\.[^.]*$//')
+              yaml_file="$dir_path/.image_dimensions.yaml"
+              touch "$yaml_file"
+              if grep -qF "${base_name}:" "$yaml_file" 2>/dev/null; then
+                sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
               else
-                echo "  - ⚠️ No AVIF files found for: $(basename "$original_file"), keeping original"
+                echo "${base_name}: ${dimensions}" >> "$yaml_file"
               fi
+              echo "  - ✅ Recorded dimensions for: $(basename "$original_file") (${dimensions})"
             fi
           done
 
@@ -294,33 +225,22 @@ jobs:
               cleaned_count=0
               
               while IFS= read -r line || [[ -n "$line" ]]; do
-                if [[ -z "$line" ]] || ! [[ "$line" =~ : ]]; then
-                  continue
-                fi
-                
+                if [[ -z "$line" ]] || ! [[ "$line" =~ : ]]; then continue; fi
                 base_name=$(echo "$line" | sed -e 's/:.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-                dimensions=$(echo "$line" | sed 's/.*:[[:space:]]*//')
+                if [ -z "$base_name" ]; then continue; fi
                 
-                if [ -z "$base_name" ]; then
-                  continue
+                image_exists=false
+                # Check if ANY image file (original or AVIF) exists for this basename
+                if [ -f "$dir_path/$base_name.avif" ] || \
+                   [ -f "$dir_path/$base_name.jpg" ] || \
+                   [ -f "$dir_path/$base_name.jpeg" ] || \
+                   [ -f "$dir_path/$base_name.png" ] || \
+                   ls "$dir_path/${base_name}_"*"w.avif" >/dev/null 2>&1; then
+                  image_exists=true
                 fi
                 
-                has_avif_files=false
-                if [ -f "$dir_path/$base_name.avif" ]; then
-                  has_avif_files=true
-                fi
-                
-                if [ "$has_avif_files" = "false" ]; then
-                  for size in 480 720 960 1440 1920 2880 3840; do
-                    if [ -f "$dir_path/${base_name}_${size}w.avif" ]; then
-                      has_avif_files=true
-                      break
-                    fi
-                  done
-                fi
-                
-                if [ "$has_avif_files" = "true" ]; then
-                  echo "$base_name: $dimensions" >> "$temp_file"
+                if [ "$image_exists" = "true" ]; then
+                  echo "$line" >> "$temp_file"
                 else
                   echo "  - 🗑️ Removed orphaned entry: $base_name"
                   cleaned_count=$((cleaned_count + 1))
@@ -331,11 +251,11 @@ jobs:
                 mv "$temp_file" "$yaml_file"
               else
                 rm "$temp_file" "$yaml_file"
-                echo "  - 🗑️ Removed empty: $(basename "$yaml_file")"
+                echo "  - 🗑️ Removed empty file: $(basename "$yaml_file")"
               fi
               
               if [ "$cleaned_count" -gt 0 ]; then
-                echo "  - 📊 Cleaned $cleaned_count orphaned entries from $(basename "$yaml_file")"
+                echo "  - 📊 Cleaned $cleaned_count entries from $(basename "$yaml_file")"
               fi
             fi
           done
@@ -355,7 +275,8 @@ jobs:
             echo "📭 No changes to commit"
           else
             echo "✅ Found changes, committing..."
-            git commit -m "build(media): Convert images to multi-size AVIF"
+            git commit -m "build(media): Generate multi-size AVIF images"
             git push --force-with-lease origin main
             echo "🚀 Changes pushed successfully"
           fi
+

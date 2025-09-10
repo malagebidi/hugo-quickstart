@@ -245,27 +245,30 @@ jobs:
           done
           
           # 统一处理所有成功转换的原始文件
-          echo -e "\n🗑️ Cleaning up successfully processed original files..."
-          for original_file in "${!processed_originals[@]}"; do
+          echo -e "\n🗂️ Updating .image_dimensions.yaml for all original files..."
+          for original_file in $FILES_TO_PROCESS; do
             if [ -f "$original_file" ]; then
-              # 检查是否至少生成了一些AVIF文件
               base_path="${original_file%.*}"
-              if [ -f "${base_path}.avif" ] || ls "${base_path}_"*"w.avif" >/dev/null 2>&1; then
-                # 记录尺寸信息
-                dimensions="${file_dimensions[$original_file]}"
-                dir_path=$(dirname "$original_file")
-                base_name=$(basename "$original_file" | sed 's/\.[^.]*$//')
-                yaml_file="$dir_path/.image_dimensions.yaml"
-                touch "$yaml_file"
-                if grep -q "${base_name}:" "$yaml_file" 2>/dev/null; then
-                  sed -i "s|${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
-                else
-                  echo "${base_name}: ${dimensions}" >> "$yaml_file"
-                fi
+              dir_path=$(dirname "$original_file")
+              base_name=$(basename "$original_file" | sed 's/\.[^.]*$//')
+              yaml_file="$dir_path/.image_dimensions.yaml"
+              touch "$yaml_file"
 
-                removed_originals["${dir_path}/${base_name}"]="${dimensions}"
+              # 获取尺寸
+              dimensions=$(identify -format "%wx%h" "$original_file")
+
+              # 写入 YAML（如果已存在则更新，否则新增）
+              if grep -q "^${base_name}:" "$yaml_file" 2>/dev/null; then
+                sed -i "s|^${base_name}:.*|${base_name}: ${dimensions}|" "$yaml_file"
               else
-                echo "  - ⚠️ No AVIF files found for: $(basename "$original_file"), keeping original"
+                echo "${base_name}: ${dimensions}" >> "$yaml_file"
+              fi
+
+              # 可选：log 是否生成了 AVIF 文件
+              if [ -f "${base_path}.avif" ] || ls "${base_path}_"*"w.avif" >/dev/null 2>&1; then
+                echo "  ✅ AVIF exists for: $base_name"
+              else
+                echo "  ⚠️ No AVIF files for: $base_name"
               fi
             fi
           done

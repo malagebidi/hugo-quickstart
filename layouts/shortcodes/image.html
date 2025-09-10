@@ -109,36 +109,14 @@
     {{ if eq $lazy "true" }}
     loading="lazy"
     {{ end }}>
-    
 {{ else }}
-  {{/* Fallback: try to find original source image */}}
-  {{ $originalResource := .Page.Resources.GetMatch (printf "%s.*" $srcBase) }}
-  {{ with $originalResource }}
-    <img 
-      src="{{ .RelPermalink }}" 
-      alt="{{ $alt }}" 
-      {{ with $class }}class="{{ . }}" {{ end }}
+  <p style="color: red;">
+    <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }})
+    {{ if fileExists $dimensionsFilePath }}
+      <br>Dimensions file: {{ $dimensionsFilePath }}
       {{ if $dimensionsFound }}
-      width="{{ $width }}" 
-      height="{{ $height }}"
+      <br>Dimensions: {{ $width }}x{{ $height }}
       {{ end }}
-      {{ if eq $lazy "true" }}
-      loading="lazy"
-      {{ end }}>
-  {{ else }}
-    {{/* No images found at all */}}
-    <p style="color: red;">
-      <strong>Image Error:</strong> Could not find any image resource matching '{{ $src }}' in this Page Bundle.
-      <br>Looking for base name: {{ $srcBase }}
-      <br>Tried: {{ $originalAvifPath }} and sized AVIF files
-      {{ if fileExists $dimensionsFilePath }}
-        <br>Dimensions file found at: {{ $dimensionsFilePath }}
-        {{ if $dimensionsFound }}
-        <br>Dimensions: {{ $width }}x{{ $height }}
-        {{ end }}
-      {{ else }}
-        <br>No dimensions file at: {{ $dimensionsFilePath }}
-      {{ end }}
-    </p>
-  {{ end }}
+    {{ end }}
+  </p>
 {{ end }}

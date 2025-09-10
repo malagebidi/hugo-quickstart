@@ -274,23 +274,31 @@ jobs:
         run: |
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'actions@github.com'
+          # 🛡️ 安全检查：确保我们有最新的远程状态
+          git fetch origin main
 
-          # 拉取最新更改
-          git fetch origin
-          git rebase origin/main || true
+          # 🛡️ 检查是否有新的提交
+          LOCAL_BASE=$(git rev-parse HEAD)
+          REMOTE_HEAD=$(git rev-parse origin/main)
+
+          if [ "$LOCAL_BASE" != "$REMOTE_HEAD" ]; then
+            echo "⚠️ 检测到远程仓库有新提交，为避免覆盖，终止操作"
+            echo "请重新运行工作流来处理最新的更改"
+            echo "Local: $LOCAL_BASE"
+            echo "Remote: $REMOTE_HEAD"
+            exit 1
+          fi
           
           echo "🔍 Checking for changes..."
-
-          # 使用 'git add content/' 来暂存 'content' 目录下的所有变更，
-          echo "📝 Staging all changes in the content directory..."
           git add content/
-
-          # 检查是否有变更
           if git diff --cached --quiet; then
             echo "📭 No changes to commit"
           else
             echo "✅ Found changes, committing..."
             git commit -m "build(media): Convert images to multi-size AVIF"
-            git push --force-with-lease origin main
+
+            # 🛡️ 最后一次检查，然后安全推送
+            git fetch origin main
+            git push origin main
             echo "🚀 Changes pushed successfully"
           fi

@@ -7,6 +7,6 @@ draft: false
 
 为什么从WordPress转到Hugo呢？我还记得至少15年前
 
-{{< image src="2025-07-31-132751" alt="占位符" >}}
+{{< image src="fatalfury_logo_togo" alt="占位符" >}}
 
 在那个不知道php为何物，

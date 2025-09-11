@@ -1,7 +1,7 @@
 ---
 title: "饿狼传说图形优化设置"
 slug: "ff-cotw-graphics-improvements"
-date: 2025-08-18T17:15:00+08:00
+date: 2025-09-12T17:15:00+08:00
 draft: false
 ---
 

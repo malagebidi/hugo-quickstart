@@ -1,7 +1,7 @@
 ---
 title: "WordPress to Hugo"
 slug: "wp-to-hugo"
-date: 2025-09-06T18:05:00
+date: 2025-09-06T18:05:00+08:00
 draft: false
 ---
 

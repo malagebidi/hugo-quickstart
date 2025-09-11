@@ -4,3 +4,5 @@ slug: "ff-cotw-graphics-improvements"
 date: 2025-09-12T02:15:00+08:00
 draft: false
 ---
+
+Screen Shake Reduction

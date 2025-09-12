@@ -1,6 +1,6 @@
 {{ define "main" }}
 <nav>
-  <a href="{{ .Site.BaseURL }}">~/</a>
+  <a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a>
 </nav>
 <hr>
 <main>
@@ -8,6 +8,7 @@
   {{ .Content }}
 </main>
 {{ end }}
+
 
 
 

@@ -10,6 +10,10 @@ body {
     line-height: 1.6
 }
 
+main > *:last-child {
+    margin-bottom: 0;
+}
+
 hr {
     margin: 1em 0
 }

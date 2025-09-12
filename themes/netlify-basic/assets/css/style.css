@@ -11,8 +11,7 @@ body {
 }
 
 hr {
-    margin-block-start: 1em;
-    margin-block-end: 1em
+    margin: 1em 0
 }
 
 ul, ol {

@@ -10,6 +10,11 @@ body {
     line-height: 1.6
 }
 
+hr {
+    margin-block-start: 1em;
+    margin-block-end: 1em
+}
+
 ul, ol {
     margin-top: 1em;
     margin-bottom: 1em;

@@ -1,6 +1,6 @@
 {{ define "main" }}
 <nav>
-  <b>{{ .Site.Title }}</b>
+  <a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a>
 </nav>
 <hr>
 {{ $pages := (where .Site.RegularPages "Type" "in" .Site.Params.mainSections).ByDate.Reverse }}

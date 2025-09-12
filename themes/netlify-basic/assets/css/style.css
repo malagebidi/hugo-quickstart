@@ -90,9 +90,7 @@ img {
 }
 
 table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1.5rem
+  border-collapse: collapse
 }
 
 th, td {

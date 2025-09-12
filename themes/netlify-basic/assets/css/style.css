@@ -16,58 +16,10 @@ nav {
 }
 
 nav a {
-    font-family: 'Noto Serif SC', serif;
     font-size: 1.5rem;
     font-weight: 700;
     text-decoration: none;
     transition: color 0.3s ease
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-blockquote {
-    font-family: "Noto Serif SC", "Noto Color Emoji", serif;
-    font-optical-sizing: auto
-}
-
-h1 {
-    font-size: 2.5em;
-    line-height: 1.2;
-    font-weight: 700
-}
-
-h2 {
-    font-size: 2em;
-    line-height: 1.25;
-    font-weight: 600
-}
-
-h3 {
-    font-size: 1.75em;
-    line-height: 1.3;
-    font-weight: 500
-}
-
-h4 {
-    font-size: 1.5em;
-    line-height: 1.4;
-    font-weight: 400
-}
-
-h5 {
-    font-size: 1.25em;
-    line-height: 1.5;
-    font-weight: 400
-}
-
-h6 {
-    font-size: 1.125em;
-    line-height: 1.5;
-    font-weight: 400
 }
 
 ul {

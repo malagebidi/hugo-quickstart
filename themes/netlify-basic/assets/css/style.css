@@ -80,6 +80,10 @@ ul {
   margin-left: 1em
 }
 
+ul li {
+  margin-bottom: 1em
+}
+
 img {
     max-width: 100%;
     height: auto

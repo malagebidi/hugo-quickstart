@@ -3,7 +3,7 @@ html {
 }
 
 body {
-    font-family: noto sans sc, noto color emoji, sans-serif;
+    font-family: "Noto Sans SC", "Noto Color Emoji", sans-serif;
     font-optical-sizing: auto;
     max-width: 720px;
     padding: 0 16px;
@@ -18,7 +18,7 @@ h4,
 h5,
 h6,
 blockquote {
-    font-family: noto serif sc, noto color emoji, serif;
+    font-family: "Noto Serif SC", "Noto Color Emoji", serif;
     font-optical-sizing: auto
 }
 

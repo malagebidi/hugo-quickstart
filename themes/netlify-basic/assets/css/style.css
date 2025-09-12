@@ -10,17 +10,6 @@ body {
     line-height: 1.6
 }
 
-nav {
-    margin: 1.5rem 0
-}
-
-nav a {
-    font-size: 1.5rem;
-    font-weight: 700;
-    text-decoration: none;
-    transition: color 0.3s ease
-}
-
 ul, ol {
     margin-top: 1em;
     margin-bottom: 1em;

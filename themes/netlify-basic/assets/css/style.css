@@ -1,0 +1,28 @@
+html {
+    color-scheme: light dark
+}
+
+body {
+    font-family: noto sans sc, noto color emoji, sans-serif;
+    font-optical-sizing: auto;
+    max-width: 720px;
+    padding: 0 16px;
+    margin: 0 auto;
+    line-height: 1.6
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+blockquote {
+    font-family: noto serif sc, noto color emoji, serif;
+    font-optical-sizing: auto
+}
+
+img {
+    max-width: 100%;
+    height: auto
+}

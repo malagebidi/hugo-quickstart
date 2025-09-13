@@ -1,5 +1,5 @@
 {{ define "main" }}
-<aside class="sidebar">
+<aside>
   <a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a>
 </aside>
 {{ $pages := (where .Site.RegularPages "Type" "in" .Site.Params.mainSections).ByDate.Reverse }}

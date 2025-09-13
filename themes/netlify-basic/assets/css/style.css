@@ -35,7 +35,13 @@ main img {
     display: block;
     margin: 1em 0;
     max-width: 100%;
-    height: auto
+    height: auto;
+    filter: grayscale(100%);
+    transition: filter 0.3s ease
+}
+
+main img:hover {
+    filter: none
 }
 
 main > *:last-child {

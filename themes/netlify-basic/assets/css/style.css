@@ -6,6 +6,7 @@ body {
     font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, "Liberation Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     padding: 1em;
     margin: 0 auto;
+    max-width: 720px
     line-height: 1.625
 }
 
@@ -36,12 +37,6 @@ main img {
     margin: 1em 0;
     max-width: 100%;
     height: auto;
-    filter: grayscale(100%);
-    transition: filter 0.3s ease
-}
-
-main img:hover {
-    filter: none
 }
 
 main > *:last-child {

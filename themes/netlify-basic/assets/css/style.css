@@ -42,14 +42,14 @@ main {
     width: 100%
 }
 
-.aspect-ratio-16-9 {
+.entry-featured {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
     overflow: hidden
 }
 
-.aspect-ratio-16-9 img {
+.entry-featured img {
     margin: 0;
     position: absolute;
     top: 0;

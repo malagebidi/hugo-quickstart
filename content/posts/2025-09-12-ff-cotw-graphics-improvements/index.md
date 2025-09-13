@@ -5,7 +5,7 @@ date: 2025-09-12T01:15:00+08:00
 draft: false
 ---
 
-{{ image src }}
+{{< image src="ff-cotw" alt="FATAL FURY: City of the Wolves" >}}
 
 《饿狼传说：群狼之城》（FATAL FURY: City of the Wolves）已经发布，对于 PC 玩家来说，优化画面设置以获得最佳体验至关重要。无论是追求极致流畅的竞技对战，还是希望录制高质量的对战视频，合理的设置都能带来巨大差异。
 

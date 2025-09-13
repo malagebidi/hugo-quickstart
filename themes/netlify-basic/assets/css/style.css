@@ -9,12 +9,6 @@ body {
     line-height: 1.625
 }
 
-.container {
-    display: flex;
-    margin: 0 auto;
-    max-width: 1440px
-}
-
 h1 {
     line-height: 1.25
 }
@@ -31,10 +25,21 @@ h1, h2, h3 {
     margin-top: 0
 }
 
+.container {
+    display: flex;
+    margin: 0 auto;
+    max-width: 1440px
+}
+
 nav {
     padding-bottom: 1em;
     margin-bottom: 1em;
     border-bottom: 1px solid
+}
+
+main {
+    max-width: 720px;
+    width: 100%
 }
 
 main img {

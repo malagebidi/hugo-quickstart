@@ -8,6 +8,11 @@ body {
     line-height: 1.625
 }
 
+.container {
+    display: flex;
+    max-width: 1440px
+}
+
 h1 {
     line-height: 1.25
 }

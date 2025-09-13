@@ -4,7 +4,8 @@ html {
 
 body {
     font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, "Liberation Sans", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-    margin: 1em;
+    padding: 1em;
+    margin: 0 auto;
     line-height: 1.625
 }
 

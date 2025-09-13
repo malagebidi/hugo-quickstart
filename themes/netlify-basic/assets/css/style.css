@@ -50,6 +50,7 @@ main {
 }
 
 .aspect-ratio-16-9 img {
+    margin: 0;
     position: absolute;
     top: 0;
     left: 0;

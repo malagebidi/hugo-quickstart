@@ -5,11 +5,14 @@
 <main>
   {{ with .Params.featured }}
     {{ with $.Page.Resources.GetMatch . }}
-      <img src="{{ .RelPermalink }}" alt="{{ $.Title }}" class="featured-image">
+      <div class="aspect-ratio-16-9">
+        <img src="{{ .RelPermalink }}" alt="{{ $.Title }}" loading="lazy">
+      </div>
     {{ end }}
   {{ end }}
   <h1>{{ .Title }}</h1>
   {{ .Content }}
 </main>
 {{ end }}
+
 

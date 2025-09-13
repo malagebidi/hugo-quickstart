@@ -13,6 +13,12 @@ nav {
     border-bottom: 1px solid
 }
 
+main img {
+    display: block;
+    max-width: 100%;
+    height: auto
+}
+
 main > *:last-child {
     margin-bottom: 0;
 }
@@ -29,11 +35,6 @@ ul, ol {
 
 ul li, ol li {
     margin-bottom: .5em
-}
-
-img {
-    max-width: 100%;
-    height: auto
 }
 
 table {

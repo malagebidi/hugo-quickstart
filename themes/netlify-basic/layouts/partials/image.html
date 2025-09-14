@@ -30,22 +30,24 @@
 {{/* Extract base name without extension - improved logic */}}
 {{ $srcBase := "" }}
 {{ if $src }}
-  {{ $fullBase := path.Base $src }}
-  {{ $srcExt := path.Ext $fullBase }}
-  {{ if $srcExt }}
-    {{ $srcBase = strings.TrimSuffix $fullBase $srcExt }}
+  {{/* 使用更安全的路径处理 */}}
+  {{ $filename := path.Base $src }}
+  {{ $extension := path.Ext $filename }}
+  
+  {{/* 调试输出 - 修复后删除 */}}
+  <p style="color: green; font-size: 12px;">
+    Debug: src="{{ $src }}", filename="{{ $filename }}", ext="{{ $extension }}"
+  </p>
+  
+  {{ if and $extension (ne $extension $filename) }}
+    {{ $srcBase = strings.TrimSuffix $filename $extension }}
   {{ else }}
-    {{ $srcBase = $fullBase }}
+    {{ $srcBase = $filename }}
   {{ end }}
-{{ end }}
-{{/* Debug output - remove after fixing */}}
-{{ if not $srcBase }}
-  <p style="color: orange;">
-    <strong>Debug:</strong> 
-    src='{{ $src }}', 
-    fullBase='{{ path.Base $src }}', 
-    ext='{{ path.Ext (path.Base $src) }}',
-    srcBase='{{ $srcBase }}'
+  
+  {{/* 再次调试输出 */}}
+  <p style="color: purple; font-size: 12px;">
+    Debug: final srcBase="{{ $srcBase }}"
   </p>
 {{ end }}
 

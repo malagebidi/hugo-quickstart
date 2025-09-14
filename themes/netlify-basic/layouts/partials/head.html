@@ -4,8 +4,9 @@
   
   <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} - {{ .Site.Title }}{{ end }}</title>
 
-  {{ $styles := resources.Get "css/output.css" | fingerprint }}
-  <link rel="stylesheet" href="{{ $styles.Permalink }}">
+  {{ $styles := resources.Get "css/main.css" | css.TailwindCSS }}
+  {{ $styles = $styles | minify | fingerprint | resources.PostProcess }}
+  <link rel="stylesheet" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}">
   {{ $style := resources.Get "css/style.css" | minify | fingerprint }}
   <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
 </head>

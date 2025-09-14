@@ -4,7 +4,7 @@
   
   <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} - {{ .Site.Title }}{{ end }}</title>
 
-  {{ $styles := resources.Get "css/main.css" | css.TailwindCSS }}
+  {{ $styles := resources.Get "css/main.css" | css.TailwindCSS (dict "config" "tailwind.config.js") }}
   {{ $styles = $styles | minify | fingerprint | resources.PostProcess }}
   <link rel="stylesheet" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}">
 </head>

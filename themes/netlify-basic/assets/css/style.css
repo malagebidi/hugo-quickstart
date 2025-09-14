@@ -31,13 +31,15 @@ h3 {
     display: flex;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 4em 0
+    padding: 4em 0;
+    gap: 8em
 }
 
 aside {
     text-align: right;
-    flex: 0 0 240px;
-    margin-right: auto
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0
 }
 
 main {

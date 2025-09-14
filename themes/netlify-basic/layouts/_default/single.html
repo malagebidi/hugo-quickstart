@@ -5,12 +5,13 @@
 <main>
   {{ with .Params.featured }}
     <div class="entry-featured">
-      {{< image src=. alt=$.Title >}}
+      {{ . | shortcode "image" (dict "src" . "alt" $.Title) }}
     </div>
   {{ end }}
   <h1 class="entry-title">{{ .Title }}</h1>
   {{ .Content }}
 </main>
 {{ end }}
+
 
 

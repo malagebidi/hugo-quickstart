@@ -6,7 +6,6 @@
 {{/* 初始化所有变量 */}}
 {{ $src := "" }}
 {{ $alt := "" }}
-{{ $class := "" }}
 {{ $lazy := "true" }}
 {{ $page := "" }}
 
@@ -15,14 +14,12 @@
   {{/* 作为 partial 调用时，. 是一个字典 */}}
   {{ $src = index . "src" | default "" }}
   {{ $alt = index . "alt" | default $src }}
-  {{ $class = index . "class" | default "" }}
   {{ $lazy = index . "lazy" | default "true" }}
   {{ $page = index . "Page" }}
 {{ else }}
   {{/* 作为 shortcode 调用时，. 是 shortcode 上下文 */}}
   {{ $src = .Get "src" }}
   {{ $alt = .Get "alt" | default $src }}
-  {{ $class = .Get "class" }}
   {{ $lazy = .Get "lazy" | default "true" }}
   {{ $page = .Page }}
 {{ end }}
@@ -156,7 +153,6 @@
     {{ end }}
     {{ end }}
     alt="{{ $alt }}" 
-    {{ with $class }}class="{{ . }}" {{ end }}
     {{ if $dimensionsFound }}
     width="{{ $width }}" 
     height="{{ $height }}"

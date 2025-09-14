@@ -181,7 +181,6 @@ jobs:
             # 处理各个尺寸
             for target_width in $sizes; do
               if [ "$width" -gt "$target_width" ] && [ ! -f "${base_path}_${target_width}w.avif" ]; then
-                target_height=$((height * target_width / width))
                 echo "  - Will generate ${target_width}w version (${target_width}x${target_height})"
                 
                 echo "    Processing ${target_width}w..."
@@ -198,7 +197,7 @@ jobs:
                     "paramlist": [{
                       "resize": 3,
                       "resize_width": '$target_width',
-                      "resize_height": '$target_height',
+                      "resize_height": 99999,
                       "convertto": "avif"
                     }]
                   }'

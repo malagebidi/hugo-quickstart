@@ -4,22 +4,13 @@
 </aside>
 <main>
   {{ with .Params.featured }}
-    <div class="entry-featured">
-      {{ partial "responsive-image.html" (dict 
-          "context"  $
-          "src" .
-          "alt"      $.Title
-          "class"    "featured-image"
-          "lazy"     "false"
-      ) }}
-    </div>
+    {{ with $.Page.Resources.GetMatch . }}
+      <div class="entry-featured">
+        <img src="{{ .RelPermalink }}" alt="{{ $.Title }}">
+      </div>
+    {{ end }}
   {{ end }}
   <h1 class="entry-title">{{ .Title }}</h1>
   {{ .Content }}
 </main>
 {{ end }}
-
-
-
-
-

@@ -1,9 +1,8 @@
 module.exports = {
   content: [
-    './content/**/*.md',
-    './themes/**/layouts/**/*.html'
+    './hugo_stats.json'
   ],
-  darkMode: 'class',
+  darkMode: 'class', // 推荐使用 class 策略来控制暗色模式
   theme: {
     extend: {},
   },

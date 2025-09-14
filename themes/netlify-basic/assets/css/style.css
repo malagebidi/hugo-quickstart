@@ -46,7 +46,8 @@ main {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
-    overflow: hidden
+    overflow: hidden;
+    margin-bottom: 2em
 }
 
 .entry-featured img {

@@ -6,13 +6,7 @@
   {{ with .Params.featured }}
     {{ with $.Page.Resources.GetMatch . }}
       <div class="entry-featured">
-        {{ partial "responsive-image.html" (dict 
-          "page"         $.Page 
-          "resource"     . 
-          "alt"          $.Title 
-          "class"        ""
-          "lazy"         "true"
-        ) }}
+        {{ partial "responsive-image.html" (dict "page"         $.Page "resource"     . "alt"          $.Title "class"        "" "lazy"         "true" ) }}
       </div>
     {{ end }}
   {{ end }}
@@ -20,3 +14,4 @@
   {{ .Content }}
 </main>
 {{ end }}
+

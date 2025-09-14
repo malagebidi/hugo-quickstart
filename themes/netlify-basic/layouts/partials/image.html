@@ -27,10 +27,9 @@
   {{ $page = .Page }}
 {{ end }}
 
-{{/* Extract base name without extension - improved logic */}}
+{{/* Extract base name without extension - FIXED */}}
 {{ $srcBase := "" }}
 {{ if $src }}
-  {{/* 使用更安全的路径处理 */}}
   {{ $filename := path.Base $src }}
   {{ $extension := path.Ext $filename }}
   
@@ -39,7 +38,8 @@
     Debug: src="{{ $src }}", filename="{{ $filename }}", ext="{{ $extension }}"
   </p>
   
-  {{ if and $extension (ne $extension $filename) }}
+  {{/* 修复：直接使用 TrimSuffix，不要复杂的条件判断 */}}
+  {{ if $extension }}
     {{ $srcBase = strings.TrimSuffix $filename $extension }}
   {{ else }}
     {{ $srcBase = $filename }}
@@ -47,7 +47,7 @@
   
   {{/* 再次调试输出 */}}
   <p style="color: purple; font-size: 12px;">
-    Debug: final srcBase="{{ $srcBase }}"
+    Debug: after TrimSuffix="{{ strings.TrimSuffix $filename $extension }}", final srcBase="{{ $srcBase }}"
   </p>
 {{ end }}
 

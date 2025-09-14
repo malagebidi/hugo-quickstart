@@ -8,7 +8,7 @@
 {{ $alt := "" }}
 {{ $lazy := "true" }}
 {{ $page := "" }}
-{{ $type := "content" }} {{/* 新增：默认为内容图片 */}}
+{{ $type := "content" }} {{/* 默认为内容图片 */}}
 
 {{/* 检测调用方式并设置变量 */}}
 {{ if reflect.IsMap . }}
@@ -17,14 +17,15 @@
   {{ $alt = index . "alt" | default $src }}
   {{ $lazy = index . "lazy" | default "true" }}
   {{ $page = index . "Page" }}
-  {{ $type = index . "type" | default "content" }} {{/* 新增：获取图片类型 */}}
+  {{ $type = index . "type" | default "content" }} {{/* partial 调用时可以指定 type */}}
 {{ else }}
   {{/* 作为 shortcode 调用时，. 是 shortcode 上下文 */}}
   {{ $src = .Get "src" }}
   {{ $alt = .Get "alt" | default $src }}
   {{ $lazy = .Get "lazy" | default "true" }}
   {{ $page = .Page }}
-  {{ $type = .Get "type" | default "content" }} {{/* 新增：获取图片类型 */}}
+  {{/* shortcode 调用时默认就是 content，不需要额外参数 */}}
+  {{ $type = "content" }}
 {{ end }}
 
 {{/* Fallback: Manual string processing */}}
@@ -78,7 +79,7 @@
   {{ end }}
 {{ end }}
 
-{{/* 新增：根据图片类型调整尺寸 */}}
+{{/* 根据图片类型调整尺寸 */}}
 {{ if eq $type "featured" }}
   {{/* 特色图片：强制16:9比例，最大720px */}}
   {{ $width = "720" }}
@@ -97,9 +98,9 @@
   {{ end }}
 {{ end }}
 
-{{/* Build srcset for different sizes - 修改：限制最大720px */}}
+{{/* Build srcset for different sizes - 限制最大720px */}}
 {{ $srcset := slice }}
-{{ $sizes := slice "480" "720" }} {{/* 修改：只使用480和720两个尺寸 */}}
+{{ $sizes := slice "480" "720" }}
 {{ $availableSizes := slice }}
 {{ $sizeToUrl := dict }}
 
@@ -148,7 +149,7 @@
   {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
 {{ end }}
 
-{{/* 修改：生成适配720px限制的sizes属性 */}}
+{{/* 生成适配720px限制的sizes属性 */}}
 {{ $sizesAttr := "" }}
 {{ if gt (len $availableSizes) 0 }}
   {{ $sortedSizes := sort $availableSizes }}

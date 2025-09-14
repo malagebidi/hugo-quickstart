@@ -42,6 +42,11 @@ aside {
     flex-basis: 0
 }
 
+aside a {
+    color: inherit;
+    text-decoration: none
+}
+
 main {
     max-width: 720px;
     width: 100%

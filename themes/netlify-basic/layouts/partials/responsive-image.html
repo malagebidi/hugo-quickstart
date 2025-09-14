@@ -1,106 +1,103 @@
 {{/*
   Partial: responsive-image.html
-  Version: 3.0 - Correctly handles variable scoping.
+  Version: 4.0 - Bulletproof Edition. Robust error handling and clear logic.
 
-  Receives a context dictionary with:
+  Receives a context dictionary:
   - "context" (required): The page context, usually "$"
-  - "resource" (required): The image resource object or filename string
+  - "src" (required): The original image filename string (e.g., "ff-cotw.jpg")
   - "alt" (optional): Alt text
   - "class" (optional): CSS class
-  - "lazy" (optional): "true" or "false" for loading attribute
+  - "lazy" (optional): "true" or "false"
 */}}
 
-{{/* --- 1. Variable Setup --- */}}
+{{/* --- 1. Variable Setup & Validation --- */}}
 {{ $page := .context }}
-{{ $resource := .resource }}
+{{ $srcFilename := .src }}
 {{ $alt := .alt | default $page.Title }}
 {{ $class := .class }}
 {{ $lazy := .lazy | default "true" }}
 
-{{ $imageResource := "" }}
-{{ $srcFilename := "" }}
-
-{{/* --- 2. Smartly handle input: string or resource object --- */}}
-{{ if reflect.IsSlice $resource }}
-  {{ $imageResource = index $resource 0 }}
-{{ else if ne (printf "%T" $resource) "string" }}
-  {{ $imageResource = $resource }}
-{{ else }}
-  {{ $imageResource = $page.Resources.GetMatch $resource }}
-{{ end }}
-
-{{/* Ensure we have a resource to work with */}}
-{{ if not $imageResource }}
-  {{ errorf "Image resource not found for '%v' in page '%s'" .resource $page.File.Path }}
+{{ if not $srcFilename }}
+  {{/* If no src is passed, silently do nothing. Or uncomment errorf for strict mode. */}}
+  {{/* {{ errorf "Partial 'responsive-image.html' was called without a 'src' parameter on page %s" $page.File.Path }} */}}
   {{ return }}
 {{ end }}
-{{ $srcFilename = $imageResource.Name }}
 
 
-{{/* --- 3. Extract Base Name (The CORRECTED Fix!) --- */}}
-{{/* This chain of declarations avoids the scoping issue entirely. */}}
+{{/* --- 2. Find the Original Image Resource --- */}}
+{{/* We ONLY search for the original (non-AVIF, non-resized) image here. */}}
+{{ $originalImageResource := $page.Resources.GetMatch $srcFilename }}
+
+{{/* --- 3. THE CRITICAL CHECK --- */}}
+{{/* If the original source image (e.g., .jpg, .png) doesn't exist, we stop immediately. */}}
+{{ if not $originalImageResource }}
+  <p style="color: red; background: #fff8f8; border: 1px solid red; padding: 1em;">
+    <strong>Image Error:</strong> The source image '<code>{{ $srcFilename }}</code>' could not be found in the resources for page '<code>{{ $page.File.Path }}</code>'. Please check the filename and ensure it's part of the page bundle.
+  </p>
+  {{ return }} {{/* Stop all further execution */}}
+{{ end }}
+
+
+{{/* --- 4. If we are here, the resource exists. Safely extract info. --- */}}
 {{ $baseFilename := path.Base $srcFilename }}
 {{ $srcExt := path.Ext $baseFilename }}
 {{ $srcBase := strings.TrimSuffix $baseFilename $srcExt }}
+{{ $width := $originalImageResource.Width }}
+{{ $height := $originalImageResource.Height }}
 
 
-{{/* Retrieve width and height directly from the original resource */}}
-{{ $width := $imageResource.Width }}
-{{ $height := $imageResource.Height }}
-
-
-{{/* --- 4. Build srcset (This section will now work correctly) --- */}}
+{{/* --- 5. Build srcset with AVIF versions --- */}}
 {{ $srcset := slice }}
 {{ $sizes := slice "480" "720" "960" "1440" "1920" "2880" "3840" }}
-{{ $availableSizes := slice }}
+{{ $availableWidths := slice }}
 
+{{/* Find resized AVIF versions */}}
 {{ range $sizes }}
   {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
   {{ with $page.Resources.GetMatch $sizedPath }}
     {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .) }}
-    {{ $availableSizes = $availableSizes | append . }}
+    {{ $availableWidths = $availableWidths | append . }}
   {{ end }}
 {{ end }}
 
+{{/* Find the original-size AVIF version */}}
 {{ with $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
-    {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .Width) }}
-    {{ $availableSizes = $availableSizes | append (string .Width) }}
+  {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .Width) }}
+  {{ $availableWidths = $availableWidths | append (string .Width) }}
 {{ end }}
 
-{{ $allSizes := uniq $availableSizes | sort "numeric" }}
 
-
-{{/* --- 5. Determine main src and generate sizes attribute --- */}}
+{{/* --- 6. Determine Main Src and Final Attributes --- */}}
 {{ $mainSrc := "" }}
 {{ $sizesAttr := "" }}
+{{ $sortedWidths := $availableWidths | uniq | sort "numeric" }}
+{{ $originalAvifResource := $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
 
-{{ if gt (len $allSizes) 0 }}
-  {{/* Use the original AVIF if available, otherwise the largest one */}}
-  {{ $originalAvifResource := $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
-  {{ if $originalAvifResource }}
-    {{ $mainSrc = $originalAvifResource.RelPermalink }}
-  {{ else }}
-    {{ $largestSize := index (last 1 $allSizes) 0 }}
-    {{ $largestPath := printf "%s_%sw.avif" $srcBase $largestSize }}
-    {{ with $page.Resources.GetMatch $largestPath }}
-      {{ $mainSrc = .RelPermalink }}
-    {{ end }}
+{{/* Prefer the original-size AVIF as src, fallback to the largest available resized AVIF */}}
+{{ if $originalAvifResource }}
+  {{ $mainSrc = $originalAvifResource.RelPermalink }}
+{{ else if gt (len $sortedWidths) 0 }}
+  {{ $largestWidth := index (last 1 $sortedWidths) 0 }}
+  {{ with $page.Resources.GetMatch (printf "%s_%sw.avif" $srcBase $largestWidth) }}
+    {{ $mainSrc = .RelPermalink }}
   {{ end }}
-  
-  {{/* Build sizes attribute */}}
+{{ end }}
+
+{{/* Build the 'sizes' attribute */}}
+{{ if gt (len $sortedWidths) 0 }}
   {{ $sizeRules := slice }}
-  {{ range $i, $size := $allSizes }}
-    {{ if lt $i (sub (len $allSizes) 1) }}
-      {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
+  {{ range $i, $width := $sortedWidths }}
+    {{ if lt $i (sub (len $sortedWidths) 1) }}
+      {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $width $width) }}
+    {{ else }}
+      {{ $sizeRules = $sizeRules | append (printf "%spx" $width) }}
     {{ end }}
   {{ end }}
-  {{ $largestAvailable := index (last 1 $allSizes) 0 }}
-  {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
   {{ $sizesAttr = delimit $sizeRules ", " }}
 {{ end }}
 
 
-{{/* --- 6. Render final HTML --- */}}
+{{/* --- 7. Render Final HTML --- */}}
 {{ if $mainSrc }}
   <img 
     src="{{ $mainSrc }}" 
@@ -113,15 +110,14 @@
     {{ if eq $lazy "true" }}loading="lazy"{{ else }}loading="eager"{{ end }}
     decoding="async">
 {{ else }}
-  <p style="color: red; background: #fff8f8; border: 1px solid red; padding: 1em;">
-    <strong>Image Error:</strong> No AVIF version found for '{{ $srcFilename }}'.<br>
-    <strong>Calculated base name:</strong> '{{ $srcBase }}'<br>
-    <strong>Page:</strong> {{ $page.File.Path }}<br>
-    <strong>Available resources in this bundle:</strong>
-    <ul>
-      {{ range $page.Resources }}
-        <li>{{ .Name }}</li>
-      {{ end }}
-    </ul>
-  </p>
+  {{/* This fallback shows the original JPG/PNG if no AVIF is found at all */}}
+  <img 
+    src="{{ $originalImageResource.RelPermalink }}"
+    alt="{{ $alt }}"
+    {{ with $class }}class="{{ . }}"{{ end }}
+    width="{{ $width }}" 
+    height="{{ $height }}"
+    {{ if eq $lazy "true" }}loading="lazy"{{ else }}loading="eager"{{ end }}
+    decoding="async">
 {{ end }}
+

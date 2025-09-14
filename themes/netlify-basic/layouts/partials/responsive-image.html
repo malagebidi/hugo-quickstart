@@ -1,6 +1,6 @@
 {{/*
   Partial: responsive-image.html
-  Version: 2.0 - Now handles both string paths and Hugo Resource Objects.
+  Version: 3.0 - Correctly handles variable scoping.
 
   Receives a context dictionary with:
   - "context" (required): The page context, usually "$"
@@ -22,37 +22,34 @@
 
 {{/* --- 2. Smartly handle input: string or resource object --- */}}
 {{ if reflect.IsSlice $resource }}
-  {{/* Handle cases where GetMatch might return a slice */}}
   {{ $imageResource = index $resource 0 }}
 {{ else if ne (printf "%T" $resource) "string" }}
-  {{/* If it's not a string, assume it's a resource object */}}
   {{ $imageResource = $resource }}
-  {{ $srcFilename = $imageResource.Name }}
 {{ else }}
-  {{/* It's a string, so we need to find the resource */}}
-  {{ $srcFilename = $resource }}
-  {{ $imageResource = $page.Resources.GetMatch $srcFilename }}
+  {{ $imageResource = $page.Resources.GetMatch $resource }}
 {{ end }}
 
-
-{{/* --- 3. Extract Base Name (The Fix!) --- */}}
-{{/* We now reliably use the resource object's .Name property */}}
-{{ $srcBase := "" }}
-{{ with $srcFilename }}
-  {{ $srcExt := path.Ext . }}
-  {{ $srcBase = strings.TrimSuffix (path.Base .) $srcExt }}
+{{/* Ensure we have a resource to work with */}}
+{{ if not $imageResource }}
+  {{ errorf "Image resource not found for '%v' in page '%s'" .resource $page.File.Path }}
+  {{ return }}
 {{ end }}
+{{ $srcFilename = $imageResource.Name }}
 
 
-{{ $width := "" }}
-{{ $height := "" }}
-{{ with $imageResource }}
-  {{ $width = .Width }}
-  {{ $height = .Height }}
-{{ end }}
+{{/* --- 3. Extract Base Name (The CORRECTED Fix!) --- */}}
+{{/* This chain of declarations avoids the scoping issue entirely. */}}
+{{ $baseFilename := path.Base $srcFilename }}
+{{ $srcExt := path.Ext $baseFilename }}
+{{ $srcBase := strings.TrimSuffix $baseFilename $srcExt }}
 
 
-{{/* --- 4. Build srcset (No changes needed here, but now it will work) --- */}}
+{{/* Retrieve width and height directly from the original resource */}}
+{{ $width := $imageResource.Width }}
+{{ $height := $imageResource.Height }}
+
+
+{{/* --- 4. Build srcset (This section will now work correctly) --- */}}
 {{ $srcset := slice }}
 {{ $sizes := slice "480" "720" "960" "1440" "1920" "2880" "3840" }}
 {{ $availableSizes := slice }}
@@ -65,56 +62,62 @@
   {{ end }}
 {{ end }}
 
-{{ $originalAvifResource := $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
-{{ with $originalAvifResource }}
-  {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .Width) }}
-  {{ $availableSizes = $availableSizes | append (string .Width) }}
+{{ with $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
+    {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .Width) }}
+    {{ $availableSizes = $availableSizes | append (string .Width) }}
 {{ end }}
 
+{{ $allSizes := uniq $availableSizes | sort "numeric" }}
+
+
+{{/* --- 5. Determine main src and generate sizes attribute --- */}}
 {{ $mainSrc := "" }}
-{{ if $originalAvifResource }}
-  {{ $mainSrc = $originalAvifResource.RelPermalink }}
-{{ else if gt (len $availableSizes) 0 }}
-  {{ $sortedSizes := sort $availableSizes "numeric" }}
-  {{ $largestSize := index (last 1 $sortedSizes) 0 }}
-  {{ $largestPath := printf "%s_%sw.avif" $srcBase $largestSize }}
-  {{ with $page.Resources.GetMatch $largestPath }}
-    {{ $mainSrc = .RelPermalink }}
-  {{ end }}
-{{ end }}
-
-
-{{/* --- 5. Generate dynamic sizes attribute (No changes) --- */}}
 {{ $sizesAttr := "" }}
-{{ if gt (len $availableSizes) 0 }}
-  {{ $sortedSizes := sort $availableSizes "numeric" }}
+
+{{ if gt (len $allSizes) 0 }}
+  {{/* Use the original AVIF if available, otherwise the largest one */}}
+  {{ $originalAvifResource := $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
+  {{ if $originalAvifResource }}
+    {{ $mainSrc = $originalAvifResource.RelPermalink }}
+  {{ else }}
+    {{ $largestSize := index (last 1 $allSizes) 0 }}
+    {{ $largestPath := printf "%s_%sw.avif" $srcBase $largestSize }}
+    {{ with $page.Resources.GetMatch $largestPath }}
+      {{ $mainSrc = .RelPermalink }}
+    {{ end }}
+  {{ end }}
+  
+  {{/* Build sizes attribute */}}
   {{ $sizeRules := slice }}
-  {{ range $i, $size := $sortedSizes }}
-    {{ if lt $i (sub (len $sortedSizes) 1) }}
+  {{ range $i, $size := $allSizes }}
+    {{ if lt $i (sub (len $allSizes) 1) }}
       {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
     {{ end }}
   {{ end }}
-  {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
+  {{ $largestAvailable := index (last 1 $allSizes) 0 }}
   {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
   {{ $sizesAttr = delimit $sizeRules ", " }}
 {{ end }}
+
 
 {{/* --- 6. Render final HTML --- */}}
 {{ if $mainSrc }}
   <img 
     src="{{ $mainSrc }}" 
-    {{ if gt (len $srcset) 0 }}srcset="{{ delimit ($srcset | uniq) ", " }}"{{ end }}
-    {{ with $sizesAttr }}sizes="{{ . }}"{{ end }}
+    srcset="{{ delimit $srcset ", " }}"
+    sizes="{{ $sizesAttr }}"
     alt="{{ $alt }}" 
     {{ with $class }}class="{{ . }}"{{ end }}
-    {{ with $width }}width="{{ . }}"{{ end }}
-    {{ with $height }}height="{{ . }}"{{ end }}
+    width="{{ $width }}" 
+    height="{{ $height }}"
     {{ if eq $lazy "true" }}loading="lazy"{{ else }}loading="eager"{{ end }}
     decoding="async">
 {{ else }}
-  <p style="color: red;">
-    <strong>Image Error:</strong> No AVIF found for '{{ $srcFilename }}' (base: {{ $srcBase }})
-    <br>Available resources in this page bundle:
+  <p style="color: red; background: #fff8f8; border: 1px solid red; padding: 1em;">
+    <strong>Image Error:</strong> No AVIF version found for '{{ $srcFilename }}'.<br>
+    <strong>Calculated base name:</strong> '{{ $srcBase }}'<br>
+    <strong>Page:</strong> {{ $page.File.Path }}<br>
+    <strong>Available resources in this bundle:</strong>
     <ul>
       {{ range $page.Resources }}
         <li>{{ .Name }}</li>

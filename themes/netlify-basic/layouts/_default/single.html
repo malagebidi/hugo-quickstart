@@ -5,9 +5,6 @@
 <main>
   {{ with .Params.featured }}
     <div class="entry-featured">
-      {{/* 添加调试信息，修复后可删除 */}}
-      <p style="color: blue; font-size: 12px;">Debug: featured param = "{{ . }}"</p>
-      
       {{ partial "image.html" (dict 
         "src" . 
         "alt" $.Title 
@@ -20,3 +17,4 @@
   {{ .Content }}
 </main>
 {{ end }}
+

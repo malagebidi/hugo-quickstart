@@ -5,7 +5,7 @@
 <main>
   {{ with .Params.featured }}
     <div class="entry-featured">
-      {{ partial "shortcodes/image.html" (dict 
+      {{ partial "image.html" (dict 
         "src" . 
         "alt" $.Title 
         "Page" $.Page
@@ -13,7 +13,6 @@
       ) }}
     </div>
   {{ end }}
-  
   <h1 class="entry-title">{{ .Title }}</h1>
   {{ .Content }}
 </main>

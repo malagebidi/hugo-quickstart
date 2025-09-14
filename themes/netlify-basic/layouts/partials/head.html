@@ -6,5 +6,5 @@
 
   {{ $styles := resources.Get "css/main.css" | css.TailwindCSS (dict "config" "tailwind.config.js") }}
   {{ $styles = $styles | minify | fingerprint | resources.PostProcess }}
-  <link rel="stylesheet" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrity }}">
+  <link rel="stylesheet" href="{{ $styles.RelPermalink }}" integrity="{{ $styles.Data.Integrability }}">
 </head>

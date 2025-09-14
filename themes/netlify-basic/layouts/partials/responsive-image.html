@@ -1,33 +1,27 @@
 {{/*
   File: layouts/partials/responsive-image.html
   This partial is the central logic for rendering responsive images.
-  VERSION: with_debugging
+  It can be called from a shortcode or directly from other templates.
 */}}
 
-{{/* --- DEBUG START --- */}}
-{{ warnf "--- BEGIN responsive-image.html Execution ---" }}
-{{/* --- DEBUG END --- */}}
-
 {{/* --- Unified Context Handling --- */}}
+{{/* Initialize variables */}}
 {{ $src := "" }}
 {{ $alt := "" }}
 {{ $class := "" }}
 {{ $lazy := "true" }}
 {{ $page := "" }}
 
+{{/* Detect if used as partial (passing a dict) or shortcode */}}
 {{ if reflect.IsMap . }}
-  {{/* --- DEBUG START --- */}}
-  {{ warnf "DEBUG: [Partial] Called as PARTIAL (with a dict)." }}
-  {{/* --- DEBUG END --- */}}
+  {{/* Called as a partial: a dictionary of parameters is passed */}}
   {{ $src = .src }}
   {{ $alt = .alt }}
   {{ $class = .class | default "" }}
   {{ $lazy = .lazy | default "true" }}
   {{ $page = .Page }}
 {{ else }}
-  {{/* --- DEBUG START --- */}}
-  {{ warnf "DEBUG: [Partial] Called as SHORTCODE." }}
-  {{/* --- DEBUG END --- */}}
+  {{/* Called as a shortcode: parameters are accessed via .Get */}}
   {{ $src = .Get "src" }}
   {{ $alt = .Get "alt" | default $src }}
   {{ $class = .Get "class" }}
@@ -35,27 +29,34 @@
   {{ $page = .Page }}
 {{ end }}
 
-{{/* --- DEBUG START: Inspect initial variables --- */}}
-{{ warnf "DEBUG: [Partial] Received src: '%s'" $src }}
-{{ warnf "DEBUG: [Partial] Received alt: '%s'" $alt }}
-{{ with $page }}{{ warnf "DEBUG: [Partial] Page context is valid for: %s" .File.Path }}{{ else }}{{ warnf "ERROR: [Partial] PAGE CONTEXT IS MISSING!" }}{{ end }}
-{{/* --- DEBUG END --- */}}
+{{/* --- Core Image Processing Logic (Largely unchanged) --- */}}
 
+{{/* Ensure src is provided */}}
 {{ if not $src }}
-  {{ errorf "[Partial] Image partial/shortcode requires a 'src' parameter." }}
+  {{ errorf "Image partial/shortcode requires a 'src' parameter. Context: %v" . }}
 {{ end }}
 
-{{ $srcBase := path.Base $src | strings.TrimSuffix (path.Ext $src) }}
-{{/* --- DEBUG START --- */}}
-{{ warnf "DEBUG: [Partial] Calculated srcBase: '%s'" $srcBase }}
-{{/* --- DEBUG END --- */}}
+{{/* Extract base name without extension using path functions */}}
+{{ $srcBase := path.Base $src }}
+{{ $srcExt := path.Ext $srcBase }}
+{{ if $srcExt }}
+  {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
+{{ end }}
 
 {{/* Try to get dimensions from hidden dimensions file */}}
 {{ $width := "" }}
 {{ $height := "" }}
 {{ $dimensionsFound := false }}
+
 {{ $pagePath := "" }}
-{{ with $page.File }}{{ $pagePath = .Dir }}{{ else }}{{ $pagePath = path.Dir $page.RelPermalink }}{{ if eq $pagePath "." }}{{ $pagePath = "" }}{{ end }}{{ end }}
+{{ with $page.File }}
+  {{ $pagePath = .Dir }}
+{{ else }}
+  {{/* Fallback for pages without File (e.g., section pages) */}}
+  {{ $pagePath = path.Dir $page.RelPermalink }}
+  {{ if eq $pagePath "." }}{{ $pagePath = "" }}{{ end }}
+{{ end }}
+
 {{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
 
 {{ if fileExists $dimensionsFilePath }}
@@ -71,9 +72,6 @@
     {{ end }}
   {{ end }}
 {{ end }}
-{{/* --- DEBUG START --- */}}
-{{ warnf "DEBUG: [Partial] Dimensions file path: '%s'. Found: %v. Dimensions: %sx%s" $dimensionsFilePath (fileExists $dimensionsFilePath) $width $height }}
-{{/* --- DEBUG END --- */}}
 
 {{/* Build srcset for different AVIF sizes */}}
 {{ $srcset := slice }}
@@ -90,9 +88,11 @@
   {{ end }}
 {{ end }}
 
+{{/* Check if original size AVIF exists */}}
 {{ $originalAvifPath := printf "%s.avif" $srcBase }}
 {{ $originalAvifResource := $page.Resources.GetMatch $originalAvifPath }}
 
+{{/* Determine the main src */}}
 {{ $mainSrc := "" }}
 
 {{ if $originalAvifResource }}
@@ -125,23 +125,14 @@
   {{ $sizesAttr = delimit $sizeRules ", " }}
 {{ end }}
 
-{{/* --- DEBUG START: Inspect final variables before rendering --- */}}
-{{ warnf "DEBUG: [Partial] AVIF resources found for base '%s': %d sizes. Original AVIF found: %v" $srcBase (len $availableSizes) (not (not $originalAvifResource)) }}
-{{ warnf "DEBUG: [Partial] Final mainSrc: '%s'" $mainSrc }}
-{{ warnf "DEBUG: [Partial] Final srcset contains %d items: %s" (len $srcset) (delimit $srcset " | ") }}
-{{/* --- DEBUG END --- */}}
-
 {{/* --- Final HTML Rendering --- */}}
 {{ if $mainSrc }}
-  {{/* --- DEBUG START --- */}}
-  {{ warnf "SUCCESS: [Partial] mainSrc is valid. Rendering <img> tag now." }}
-  {{/* --- DEBUG END --- */}}
   <img 
     src="{{ $mainSrc }}" 
     {{ with $srcset }}{{ if gt (len .) 0 }}srcset="{{ delimit . ", " }}"{{ end }}{{ end }}
     {{ with $sizesAttr }}sizes="{{ . }}"{{ end }}
     alt="{{ $alt }}" 
-    {{ with $class }}class="{{ . }}" {{ end }}
+    {{ with $class }}class="{{ . }}"{{ end }}
     {{ if $dimensionsFound }}
     width="{{ $width }}" 
     height="{{ $height }}"
@@ -149,24 +140,15 @@
     {{ if eq $lazy "true" }}loading="lazy"{{ end }}
     decoding="async">
 {{ else }}
-  {{/* --- DEBUG START --- */}}
-  {{ warnf "ERROR: [Partial] 'mainSrc' is EMPTY. Cannot render <img>. No matching AVIF resources were found for base '%s' in page '%s'." $srcBase $page.File.Path }}
-  {{/* --- DEBUG END --- */}}
-  <p style="color: red; border: 1px solid red; padding: 10px; background-color: #ffeeee;">
-    <strong>Image Render Error:</strong> No AVIF resources were found for '<strong>{{ $src }}</strong>' (base name: '<strong>{{ $srcBase }}</strong>').
-    <br>Page Context: <strong>{{ $page.File.Path }}</strong>
-    <br>Searched for AVIFs like: <strong>{{ $srcBase }}.avif</strong>, <strong>{{ $srcBase }}_480w.avif</strong>, etc.
-    <br>Available Resources in this Page Bundle:
-    <ul style="margin-top: 5px;">
-      {{ range $page.Resources }}
-        <li>{{ .Name }} ({{ .MediaType }})</li>
-      {{ else }}
-        <li>No resources found in this page bundle.</li>
-      {{ end }}
-    </ul>
+  <p style="color: red;">
+    <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }})
+    <br>Page: {{ $page.File.Path }}
+    {{ if fileExists $dimensionsFilePath }}
+      <br>Dimensions file: {{ $dimensionsFilePath }} (found)
+      <br>Dimensions data read: {{ $width }}x{{ $height }}
+    {{ else }}
+      <br>Dimensions file not found: {{ $dimensionsFilePath }}
+    {{ end }}
+    <br>Available page resources: {{ range $page.Resources }}{{ .Name }}, {{ end }}
   </p>
 {{ end }}
-
-{{/* --- DEBUG START --- */}}
-{{ warnf "--- END responsive-image.html Execution ---\n" }}
-{{/* --- DEBUG END --- */}}

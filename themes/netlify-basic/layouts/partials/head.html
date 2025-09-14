@@ -7,7 +7,7 @@
   {{ $css := resources.Get "css/main.css" }}
   {{ $css = $css | resources.PostCSS }}
   {{ $css = $css | minify | fingerprint }}
-<link rel="stylesheet" href="{{ $css.RelPermalink }}">
+  <link rel="stylesheet" href="{{ $css.RelPermalink }}">
   {{ $style := resources.Get "css/style.css" | minify | fingerprint }}
   <link rel="stylesheet" href="{{ $style.RelPermalink }}" integrity="{{ $style.Data.Integrity }}">
 </head>

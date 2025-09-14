@@ -1,0 +1,154 @@
+{{/*
+  File: layouts/partials/responsive-image.html
+  This partial is the central logic for rendering responsive images.
+  It can be called from a shortcode or directly from other templates.
+*/}}
+
+{{/* --- Unified Context Handling --- */}}
+{{/* Initialize variables */}}
+{{ $src := "" }}
+{{ $alt := "" }}
+{{ $class := "" }}
+{{ $lazy := "true" }}
+{{ $page := "" }}
+
+{{/* Detect if used as partial (passing a dict) or shortcode */}}
+{{ if reflect.IsMap . }}
+  {{/* Called as a partial: a dictionary of parameters is passed */}}
+  {{ $src = .src }}
+  {{ $alt = .alt }}
+  {{ $class = .class | default "" }}
+  {{ $lazy = .lazy | default "true" }}
+  {{ $page = .Page }}
+{{ else }}
+  {{/* Called as a shortcode: parameters are accessed via .Get */}}
+  {{ $src = .Get "src" }}
+  {{ $alt = .Get "alt" | default $src }}
+  {{ $class = .Get "class" }}
+  {{ $lazy = .Get "lazy" | default "true" }}
+  {{ $page = .Page }}
+{{ end }}
+
+{{/* --- Core Image Processing Logic (Largely unchanged) --- */}}
+
+{{/* Ensure src is provided */}}
+{{ if not $src }}
+  {{ errorf "Image partial/shortcode requires a 'src' parameter. Context: %v" . }}
+{{ end }}
+
+{{/* Extract base name without extension using path functions */}}
+{{ $srcBase := path.Base $src }}
+{{ $srcExt := path.Ext $srcBase }}
+{{ if $srcExt }}
+  {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
+{{ end }}
+
+{{/* Try to get dimensions from hidden dimensions file */}}
+{{ $width := "" }}
+{{ $height := "" }}
+{{ $dimensionsFound := false }}
+
+{{ $pagePath := "" }}
+{{ with $page.File }}
+  {{ $pagePath = .Dir }}
+{{ else }}
+  {{/* Fallback for pages without File (e.g., section pages) */}}
+  {{ $pagePath = path.Dir $page.RelPermalink }}
+  {{ if eq $pagePath "." }}{{ $pagePath = "" }}{{ end }}
+{{ end }}
+
+{{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
+
+{{ if fileExists $dimensionsFilePath }}
+  {{ with readFile $dimensionsFilePath | transform.Unmarshal }}
+    {{ with (index . $srcBase) }}
+      {{ $dimensionStr := . }}
+      {{ $parts := split $dimensionStr "x" }}
+      {{ if eq (len $parts) 2 }}
+        {{ $width = index $parts 0 }}
+        {{ $height = index $parts 1 }}
+        {{ $dimensionsFound = true }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{/* Build srcset for different AVIF sizes */}}
+{{ $srcset := slice }}
+{{ $sizes := slice "480" "720" "960" "1440" "1920" "2880" "3840" }}
+{{ $availableSizes := slice }}
+{{ $sizeToUrl := dict }}
+
+{{ range $sizes }}
+  {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
+  {{ with $page.Resources.GetMatch $sizedPath }}
+    {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .) }}
+    {{ $availableSizes = $availableSizes | append . }}
+    {{ $sizeToUrl = merge $sizeToUrl (dict . .RelPermalink) }}
+  {{ end }}
+{{ end }}
+
+{{/* Check if original size AVIF exists */}}
+{{ $originalAvifPath := printf "%s.avif" $srcBase }}
+{{ $originalAvifResource := $page.Resources.GetMatch $originalAvifPath }}
+
+{{/* Determine the main src */}}
+{{ $mainSrc := "" }}
+
+{{ if $originalAvifResource }}
+  {{ $mainSrc = $originalAvifResource.RelPermalink }}
+  {{ if $dimensionsFound }}
+    {{ if not (in $availableSizes $width) }}
+      {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink $width) }}
+      {{ $availableSizes = $availableSizes | append $width }}
+      {{ $sizeToUrl = merge $sizeToUrl (dict $width .RelPermalink) }}
+    {{ end }}
+  {{ end }}
+{{ else if gt (len $availableSizes) 0 }}
+  {{ $sortedAvailable := sort $availableSizes }}
+  {{ $largestAvailableSize := index (last 1 $sortedAvailable) 0 }}
+  {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
+{{ end }}
+
+{{/* Generate dynamic sizes attribute based on available sizes */}}
+{{ $sizesAttr := "" }}
+{{ if gt (len $availableSizes) 0 }}
+  {{ $sortedSizes := sort $availableSizes }}
+  {{ $sizeRules := slice }}
+  {{ range $i, $size := $sortedSizes }}
+    {{ if lt $i (sub (len $sortedSizes) 1) }}
+      {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
+    {{ end }}
+  {{ end }}
+  {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
+  {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
+  {{ $sizesAttr = delimit $sizeRules ", " }}
+{{ end }}
+
+{{/* --- Final HTML Rendering --- */}}
+{{ if $mainSrc }}
+  <img 
+    src="{{ $mainSrc }}" 
+    {{ with $srcset }}{{ if gt (len .) 0 }}srcset="{{ delimit . ", " }}"{{ end }}{{ end }}
+    {{ with $sizesAttr }}sizes="{{ . }}"{{ end }}
+    alt="{{ $alt }}" 
+    {{ with $class }}class="{{ . }}"{{ end }}
+    {{ if $dimensionsFound }}
+    width="{{ $width }}" 
+    height="{{ $height }}"
+    {{ end }}
+    {{ if eq $lazy "true" }}loading="lazy"{{ end }}
+    decoding="async">
+{{ else }}
+  <p style="color: red;">
+    <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }})
+    <br>Page: {{ $page.File.Path }}
+    {{ if fileExists $dimensionsFilePath }}
+      <br>Dimensions file: {{ $dimensionsFilePath }} (found)
+      <br>Dimensions data read: {{ $width }}x{{ $height }}
+    {{ else }}
+      <br>Dimensions file not found: {{ $dimensionsFilePath }}
+    {{ end }}
+    <br>Available page resources: {{ range $page.Resources }}{{ .Name }}, {{ end }}
+  </p>
+{{ end }}

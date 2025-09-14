@@ -3,8 +3,20 @@
   <a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a>
 </aside>
 <main>
+  {{/* We start by checking the 'featured' parameter in the front matter */}}
   {{ with .Params.featured }}
-    {{ with $.Page.Resources.GetMatch . }}
+    
+    {{/* --- DEBUG --- */}}
+    {{ warnf "DEBUG: [single.html] Found 'featured' front matter: %s" . }}
+    {{/* --- /DEBUG --- */}}
+
+    {{ $featuredImageName := . }}
+    {{ with $.Page.Resources.GetMatch $featuredImageName }}
+      
+      {{/* --- DEBUG --- */}}
+      {{ warnf "DEBUG: [single.html] Matched a page resource for '%s'. Resource Name: %s" $featuredImageName .Name }}
+      {{/* --- /DEBUG --- */}}
+
       <div class="entry-featured">
         {{ partial "responsive-image.html" (dict 
             "src" .Name 
@@ -13,10 +25,18 @@
             "class" "featured-image"
         ) }}
       </div>
+    {{ else }}
+
+      {{/* --- DEBUG --- */}}
+      {{ warnf "ERROR: [single.html] Could not find a matching page resource for featured image '%s' in page '%s'." $featuredImageName $.File.Path }}
+      {{ warnf "INFO: [single.html] Available resources are: %s" (delimit ($.Page.Resources.Match "*") ", ") }}
+      {{/* --- /DEBUG --- */}}
+      
     {{ end }}
   {{ end }}
   <h1 class="entry-title">{{ .Title }}</h1>
   {{ .Content }}
 </main>
 {{ end }}
+
 

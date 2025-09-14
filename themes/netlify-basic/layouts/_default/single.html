@@ -1,68 +1,15 @@
 {{ define "main" }}
 <aside>
-  <a href="{{ .Site.BaseURL }}">{{ .Site.BaseURL }}</a>
+  <a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a>
 </aside>
 <main>
-  
-  {{/* --- STAGE 1 DEBUG --- */}}
-  <div style="border: 2px solid blue; padding: 10px; margin: 10px 0;">
-    <h4>[Debug Stage 1] Checking Front Matter</h4>
-    {{ if .Params.featured }}
-      <p style="color: green;">SUCCESS: Found <code>featured</code> parameter in Front Matter. Value is: <strong>"{{ .Params.featured }}"</strong></p>
-    {{ else }}
-      <p style="color: red;"><strong>ISSUE:</strong> No <code>featured</code> parameter found in this page's Front Matter. Please check the top of your markdown file (e.g., <code>index.md</code>).</p>
-      <pre>---
-title: "My Post Title"
-date: 2023-10-27T10:00:00Z
-featured: "my-image-name.jpg"  &lt;-- Make sure this line exists and is spelled correctly.
----</pre>
-    {{ end }}
-  </div>
-
   {{ with .Params.featured }}
-    {{/* This 'with' block will only run if the check above succeeds */}}
-    {{ $featured_filename := . }}
-
-    {{/* --- STAGE 2 DEBUG --- */}}
-    <div style="border: 2px solid orange; padding: 10px; margin: 10px 0;">
-      <h4>[Debug Stage 2] Finding Image Resource</h4>
-      {{ with $.Page.Resources.GetMatch $featured_filename }}
-        <p style="color: green;">SUCCESS: Hugo found a matching resource for <strong>"{{ $featured_filename }}"</strong>. The resource object is available.</p>
-        <p>The code will now attempt to call the partial.</p>
-      {{ else }}
-        <p style="color: red;"><strong>ISSUE:</strong> Hugo could <strong>NOT</strong> find a resource matching the name <strong>"{{ $featured_filename }}"</strong> within this page's bundle.</p>
-        <strong>Please verify:</strong>
-        <ol>
-          <li>Your content is a Page Bundle. The file path should be like: <code>/content/posts/my-post/index.md</code> (NOT <code>/content/posts/my-post.md</code>).</li>
-          <li>The image file <code>{{ $featured_filename }}</code> is in the <strong>SAME FOLDER</strong> as <code>index.md</code>.</li>
-          <li>The filename in the Front Matter exactly matches the actual image filename (including extension and case-sensitivity).</li>
-        </ol>
-        <p><strong>Available resources in this bundle:</strong></p>
-        <ul>
-          {{ range $.Page.Resources }}
-            <li>{{ .Name }}</li>
-          {{ else }}
-            <li>(No resources found in this page bundle)</li>
-          {{ end }}
-        </ul>
-      {{ end }}
-    </div>
-
-    {{/* --- ACTUAL CODE --- */}}
     {{ with $.Page.Resources.GetMatch . }}
       <div class="entry-featured">
-        {{/* This is where our partial is supposed to be called */}}
-        {{ partial "responsive-image.html" (dict 
-            "src" .Name 
-            "alt" $.Title 
-            "Page" $
-            "class" "featured-image"
-        ) }}
+        <img src="{{ .RelPermalink }}" alt="{{ $.Title }}" loading="lazy">
       </div>
     {{ end }}
-
   {{ end }}
-
   <h1 class="entry-title">{{ .Title }}</h1>
   {{ .Content }}
 </main>

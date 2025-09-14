@@ -1,91 +1,93 @@
-{{/* Partial template: layouts/partials/responsive-image.html */}}
-{{/* Receives a context dictionary with "src", "alt", "class", "page", etc. */}}
-{{ $src := .src }}
-{{ $alt := .alt | default .src }}
+{{/*
+  Partial: responsive-image.html
+  Version: 2.0 - Now handles both string paths and Hugo Resource Objects.
+
+  Receives a context dictionary with:
+  - "context" (required): The page context, usually "$"
+  - "resource" (required): The image resource object or filename string
+  - "alt" (optional): Alt text
+  - "class" (optional): CSS class
+  - "lazy" (optional): "true" or "false" for loading attribute
+*/}}
+
+{{/* --- 1. Variable Setup --- */}}
+{{ $page := .context }}
+{{ $resource := .resource }}
+{{ $alt := .alt | default $page.Title }}
 {{ $class := .class }}
 {{ $lazy := .lazy | default "true" }}
-{{ $page := .page }} {{/* Crucial: We need the page context to find resources */}}
-{{/* --- 从这里开始，下面的代码需要把所有的 $.Page 替换为 $page --- */}}
-{{/* Extract base name without extension using path functions */}}
-{{ $srcBase := path.Base $src }}
-{{ $srcExt := path.Ext $srcBase }}
-{{ if $srcExt }}
-  {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
+
+{{ $imageResource := "" }}
+{{ $srcFilename := "" }}
+
+{{/* --- 2. Smartly handle input: string or resource object --- */}}
+{{ if reflect.IsSlice $resource }}
+  {{/* Handle cases where GetMatch might return a slice */}}
+  {{ $imageResource = index $resource 0 }}
+{{ else if ne (printf "%T" $resource) "string" }}
+  {{/* If it's not a string, assume it's a resource object */}}
+  {{ $imageResource = $resource }}
+  {{ $srcFilename = $imageResource.Name }}
+{{ else }}
+  {{/* It's a string, so we need to find the resource */}}
+  {{ $srcFilename = $resource }}
+  {{ $imageResource = $page.Resources.GetMatch $srcFilename }}
 {{ end }}
-{{/* Try to get dimensions from hidden dimensions file */}}
+
+
+{{/* --- 3. Extract Base Name (The Fix!) --- */}}
+{{/* We now reliably use the resource object's .Name property */}}
+{{ $srcBase := "" }}
+{{ with $srcFilename }}
+  {{ $srcExt := path.Ext . }}
+  {{ $srcBase = strings.TrimSuffix (path.Base .) $srcExt }}
+{{ end }}
+
+
 {{ $width := "" }}
 {{ $height := "" }}
-{{ $dimensionsFound := false }}
-{{/* Get the directory where this post/page is located */}}
-{{ $pagePath := "" }}
-{{ with $page.File }}
-  {{ $pagePath = .Dir }}
-{{ else }}
-  {{/* Fallback for pages without File */}}
-  {{ $pagePath = path.Dir $page.RelPermalink }}
-  {{ if eq $pagePath "." }}
-    {{ $pagePath = "" }}
-  {{ end }}
-{{ end }}
-{{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
-
-{{ if fileExists $dimensionsFilePath }}
-  {{ $dimensionsContent := readFile $dimensionsFilePath }}
-  {{ if $dimensionsContent }}
-    {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
-    {{ with (index $dimensionsData $srcBase) }}
-      {{ $dimensionStr := . }}
-      {{ $parts := split $dimensionStr "x" }}
-      {{ if eq (len $parts) 2 }}
-        {{ $width = index $parts 0 }}
-        {{ $height = index $parts 1 }}
-        {{ $dimensionsFound = true }}
-      {{ end }}
-    {{ end }}
-  {{ end }}
+{{ with $imageResource }}
+  {{ $width = .Width }}
+  {{ $height = .Height }}
 {{ end }}
 
+
+{{/* --- 4. Build srcset (No changes needed here, but now it will work) --- */}}
 {{ $srcset := slice }}
 {{ $sizes := slice "480" "720" "960" "1440" "1920" "2880" "3840" }}
 {{ $availableSizes := slice }}
-{{ $sizeToUrl := dict }}
 
 {{ range $sizes }}
   {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
-  {{/* Use the page's resources to find the match */}}
-  {{ $sizedResource := $page.Resources.GetMatch $sizedPath }}
-  {{ if $sizedResource }}
-    {{ $srcset = $srcset | append (printf "%s %sw" $sizedResource.RelPermalink .) }}
+  {{ with $page.Resources.GetMatch $sizedPath }}
+    {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .) }}
     {{ $availableSizes = $availableSizes | append . }}
-    {{ $sizeToUrl = merge $sizeToUrl (dict . $sizedResource.RelPermalink) }}
   {{ end }}
 {{ end }}
 
-{{ $originalAvifPath := printf "%s.avif" $srcBase }}
-{{ $originalAvifResource := $page.Resources.GetMatch $originalAvifPath }}
+{{ $originalAvifResource := $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
+{{ with $originalAvifResource }}
+  {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .Width) }}
+  {{ $availableSizes = $availableSizes | append (string .Width) }}
+{{ end }}
 
 {{ $mainSrc := "" }}
-
 {{ if $originalAvifResource }}
   {{ $mainSrc = $originalAvifResource.RelPermalink }}
-  {{ if $dimensionsFound }}
-    {{ $widthInList := false }}
-    {{ range $availableSizes }}{{ if eq . $width }}{{ $widthInList = true }}{{ break }}{{ end }}{{ end }}
-    {{ if not $widthInList }}
-      {{ $srcset = $srcset | append (printf "%s %sw" $originalAvifResource.RelPermalink $width) }}
-      {{ $availableSizes = $availableSizes | append $width }}
-      {{ $sizeToUrl = merge $sizeToUrl (dict $width $originalAvifResource.RelPermalink) }}
-    {{ end }}
-  {{ end }}
 {{ else if gt (len $availableSizes) 0 }}
-  {{ $sortedAvailable := sort $availableSizes }}
-  {{ $largestAvailableSize := index (last 1 $sortedAvailable) 0 }}
-  {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
+  {{ $sortedSizes := sort $availableSizes "numeric" }}
+  {{ $largestSize := index (last 1 $sortedSizes) 0 }}
+  {{ $largestPath := printf "%s_%sw.avif" $srcBase $largestSize }}
+  {{ with $page.Resources.GetMatch $largestPath }}
+    {{ $mainSrc = .RelPermalink }}
+  {{ end }}
 {{ end }}
 
+
+{{/* --- 5. Generate dynamic sizes attribute (No changes) --- */}}
 {{ $sizesAttr := "" }}
 {{ if gt (len $availableSizes) 0 }}
-  {{ $sortedSizes := sort $availableSizes }}
+  {{ $sortedSizes := sort $availableSizes "numeric" }}
   {{ $sizeRules := slice }}
   {{ range $i, $size := $sortedSizes }}
     {{ if lt $i (sub (len $sortedSizes) 1) }}
@@ -97,30 +99,26 @@
   {{ $sizesAttr = delimit $sizeRules ", " }}
 {{ end }}
 
+{{/* --- 6. Render final HTML --- */}}
 {{ if $mainSrc }}
   <img 
     src="{{ $mainSrc }}" 
-    {{ if gt (len $srcset) 0 }}
-    srcset="{{ delimit $srcset ", " }}"
-    {{ if $sizesAttr }}sizes="{{ $sizesAttr }}"{{ end }}
-    {{ end }}
+    {{ if gt (len $srcset) 0 }}srcset="{{ delimit ($srcset | uniq) ", " }}"{{ end }}
+    {{ with $sizesAttr }}sizes="{{ . }}"{{ end }}
     alt="{{ $alt }}" 
     {{ with $class }}class="{{ . }}"{{ end }}
-    {{ if $dimensionsFound }}
-    width="{{ $width }}" 
-    height="{{ $height }}"
-    {{ end }}
-    {{ if eq $lazy "true" }}loading="lazy"{{ end }}
+    {{ with $width }}width="{{ . }}"{{ end }}
+    {{ with $height }}height="{{ . }}"{{ end }}
+    {{ if eq $lazy "true" }}loading="lazy"{{ else }}loading="eager"{{ end }}
     decoding="async">
 {{ else }}
   <p style="color: red;">
-    <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }})
-    {{ if fileExists $dimensionsFilePath }}
-      <br>Dimensions file: {{ $dimensionsFilePath }}
-      {{ if $dimensionsFound }}<br>Dimensions: {{ $width }}x{{ $height }}{{ end }}
-    {{ else }}
-      <br>No dimensions file found at: {{ $dimensionsFilePath }}
-    {{ end }}
-    <br>Available resources: {{ range $page.Resources }}{{ .Name }}, {{ end }}
+    <strong>Image Error:</strong> No AVIF found for '{{ $srcFilename }}' (base: {{ $srcBase }})
+    <br>Available resources in this page bundle:
+    <ul>
+      {{ range $page.Resources }}
+        <li>{{ .Name }}</li>
+      {{ end }}
+    </ul>
   </p>
 {{ end }}

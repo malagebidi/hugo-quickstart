@@ -6,6 +6,9 @@ timeZone: "Asia/Shanghai"
 disableHugoGeneratorInject: true 
 uglyURLs: true
 
+build:
+  writeStats: true
+
 ignoreFiles:
   - "\\.jpg$"
   - "\\.jpeg$"

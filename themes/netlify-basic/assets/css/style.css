@@ -10,8 +10,7 @@ body {
 }
 
 a:visited {
-    color: #007bff;
-    text-decoration: none
+    color: inherit
 }
 
 h1 {

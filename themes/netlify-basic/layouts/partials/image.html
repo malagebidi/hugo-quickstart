@@ -39,11 +39,6 @@
   {{ else }}
     {{ $srcBase = $filename }}
   {{ end }}
-  
-  {{/* 调试输出 */}}
-  <p style="color: orange; font-size: 12px;">
-    Debug: parts={{ $parts }}, srcBase="{{ $srcBase }}"
-  </p>
 {{ end }}
 
 {{/* Try to get dimensions from hidden dimensions file */}}

@@ -27,11 +27,26 @@
   {{ $page = .Page }}
 {{ end }}
 
-{{/* Extract base name without extension using path functions */}}
-{{ $srcBase := path.Base $src }}
-{{ $srcExt := path.Ext $srcBase }}
-{{ if $srcExt }}
-  {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
+{{/* Extract base name without extension - improved logic */}}
+{{ $srcBase := "" }}
+{{ if $src }}
+  {{ $fullBase := path.Base $src }}
+  {{ $srcExt := path.Ext $fullBase }}
+  {{ if $srcExt }}
+    {{ $srcBase = strings.TrimSuffix $fullBase $srcExt }}
+  {{ else }}
+    {{ $srcBase = $fullBase }}
+  {{ end }}
+{{ end }}
+{{/* Debug output - remove after fixing */}}
+{{ if not $srcBase }}
+  <p style="color: orange;">
+    <strong>Debug:</strong> 
+    src='{{ $src }}', 
+    fullBase='{{ path.Base $src }}', 
+    ext='{{ path.Ext (path.Base $src) }}',
+    srcBase='{{ $srcBase }}'
+  </p>
 {{ end }}
 
 {{/* Try to get dimensions from hidden dimensions file */}}

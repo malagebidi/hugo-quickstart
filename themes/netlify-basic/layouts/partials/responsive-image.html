@@ -1,40 +1,38 @@
 {{/*
   File: layouts/partials/responsive-image.html
   This partial is the central logic for rendering responsive images.
-  It can be called from a shortcode or directly from other templates.
 */}}
 
-{{/* --- Unified Context Handling (Corrected Version) --- */}}
-{{/* Initialize variables in the outer scope */}}
+{{/* --- FINAL CORRECTED Context & Variable Handling --- */}}
 {{ $src := "" }}
 {{ $alt := "" }}
 {{ $class := "" }}
 {{ $lazy := "true" }}
-{{ $page := .Page }} {{/* Default context for shortcodes */}}
+{{ $page := "" }}
 
-{{/* Detect if used as partial (passing a dict) or shortcode */}}
 {{ if reflect.IsMap . }}
-  {{/* Called as a partial: a dictionary of parameters is passed */}}
+  {{/* PARTIAL call: Data is in a dictionary. */}}
   {{ $src = .src }}
   {{ $alt = .alt }}
   {{ $class = .class | default "" }}
   {{ $lazy = .lazy | default "true" }}
-  {{/* IMPORTANT FIX: Get the Page context from the dictionary key "Page" */}}
-  {{ $page = .Page }}
+  {{/* THE ABSOLUTE FIX: Explicitly get the page context from the dictionary. */}}
+  {{ $page = .Page }} 
 {{ else }}
-  {{/* Called as a shortcode: parameters are accessed via .Get */}}
+  {{/* SHORTCODE call: Data is accessed via .Get and context is global .Page */}}
   {{ $src = .Get "src" }}
   {{ $alt = .Get "alt" | default $src }}
   {{ $class = .Get "class" }}
   {{ $lazy = .Get "lazy" | default "true" }}
-  {{/* For shortcodes, the default .$Page context is already correct */}}
+  {{ $page = .Page }}
 {{ end }}
+
 
 {{/* --- Core Image Processing Logic --- */}}
 
-{{/* Ensure src is provided */}}
-{{ if not $src }}
-  {{ errorf "Image partial/shortcode requires a 'src' parameter. Context: %v" . }}
+{{/* Ensure src and page context are valid before proceeding */}}
+{{ if or (not $src) (not $page) }}
+  {{ errorf "Image partial/shortcode requires a 'src' parameter and a valid Page context. Src: '%s', Page: '%v'" $src $page }}
 {{ end }}
 
 {{/* Extract base name without extension using path functions */}}
@@ -44,50 +42,20 @@
   {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
 {{ end }}
 
-{{/* Try to get dimensions from hidden dimensions file */}}
-{{ $width := "" }}
-{{ $height := "" }}
-{{ $dimensionsFound := false }}
-
-{{ $pagePath := "" }}
-{{ with $page.File }}
-  {{ $pagePath = .Dir }}
-{{ else }}
-  {{/* Fallback for pages without File (e.g., section pages) */}}
-  {{ $pagePath = path.Dir $page.RelPermalink }}
-  {{ if eq $pagePath "." }}{{ $pagePath = "" }}{{ end }}
-{{ end }}
-
-{{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
-
-{{ if fileExists $dimensionsFilePath }}
-  {{ with readFile $dimensionsFilePath | transform.Unmarshal }}
-    {{ with (index . $srcBase) }}
-      {{ $dimensionStr := . }}
-      {{ $parts := split $dimensionStr "x" }}
-      {{ if eq (len $parts) 2 }}
-        {{ $width = index $parts 0 }}
-        {{ $height = index $parts 1 }}
-        {{ $dimensionsFound = true }}
-      {{ end }}
-    {{ end }}
-  {{ end }}
-{{ end }}
-
 {{/* Build srcset for different AVIF sizes */}}
 {{ $srcset := slice }}
-{{ $sizes := slice "480" "720" "960" "1440" "1920" }} {{/* Removed larger sizes for practicality unless needed */}}
+{{ $sizes := slice "480" "720" "960" "1440" "1920" }}
 {{ $availableResources := slice }}
 
 {{ range $sizes }}
   {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
   {{ with $page.Resources.GetMatch $sizedPath }}
     {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .) }}
-    {{ $availableResources = $availableResources | append . }}
+    {{ $availableResources = $append $availableResources . }}
   {{ end }}
 {{ end }}
 
-{{/* Find the original (un-suffixed) AVIF resource to use as the main src and fallback */}}
+{{/* Find the original (un-suffixed) AVIF resource to use as the main src */}}
 {{ $mainResource := $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
 
 {{/* If no main resource found, but we have sized versions, pick the largest as fallback */}}
@@ -102,22 +70,23 @@
     src="{{ $mainResource.RelPermalink }}" 
     {{ with $srcset }}{{ if gt (len .) 0 }}srcset="{{ delimit . ", " | safeHTMLAttr }}"{{ end }}{{ end }}
     sizes="(max-width: {{ $mainResource.Width }}px) 100vw, {{ $mainResource.Width }}px"
-    alt="{{ $alt }}" 
+    alt="{{ $alt | plainify }}" 
     {{ with $class }}class="{{ . }}"{{ end }}
-    {{/* Use resource's dimensions if dimensions file fails */}}
     width="{{ $mainResource.Width }}" 
     height="{{ $mainResource.Height }}"
     {{ if eq $lazy "true" }}loading="lazy"{{ end }}
     decoding="async">
 {{ else }}
-  <p style-="color: red; background: #fff0f0; border: 1px solid red; padding: 1em;">
-    <strong>Image Error:</strong> Could not find any matching AVIF resources for '{{ $src }}' (base: '{{ $srcBase }}').
-    <br><strong>Page:</strong> {{ $page.File.Path | default "unknown path" }}
-    <br><strong>Checked for:</strong>
+  <div style="color: red; background: #fff0f0; border: 1px solid red; padding: 1em; font-family: monospace;">
+    <p><strong>Image Partial Error:</strong> Could not find any matching AVIF resources.</p>
     <ul>
-      <li>{{ $srcBase }}.avif (as main source)</li>
-      <li>{{ $srcBase }}_*w.avif (for srcset)</li>
+      <li><strong>Input 'src':</strong> {{ $src }}</li>
+      <li><strong>Calculated Base Name ('$srcBase'):</strong> '{{ $srcBase }}'</li>
+      <li><strong>Page Context:</strong> {{ $page.File.Path | default "unknown path" }}</li>
+      <li><strong>Checked for (main src):</strong> {{ printf "%s.avif" $srcBase }}</li>
+      <li><strong>Checked for (srcset):</strong> {{ printf "%s_*w.avif" $srcBase }}</li>
     </ul>
-    <strong>Available resources in this bundle:</strong> {{ range $page.Resources }}{{ .Name }}, {{ end }}
-  </p>
+    <p><strong>Available resources in bundle:</strong></p>
+    <pre>{{ range $page.Resources }}{{ .Name }} | {{ end }}</pre>
+  </div>
 {{ end }}

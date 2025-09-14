@@ -6,7 +6,7 @@
   {{ with .Params.featured }}
     {{ with $.Page.Resources.GetMatch . }}
       <div class="entry-featured">
-        <img src="{{ .RelPermalink }}" alt="{{ $.Title }}" loading="lazy">
+        <img src="{{ .RelPermalink }}" alt="{{ $.Title }}">
       </div>
     {{ end }}
   {{ end }}
@@ -14,3 +14,4 @@
   {{ .Content }}
 </main>
 {{ end }}
+

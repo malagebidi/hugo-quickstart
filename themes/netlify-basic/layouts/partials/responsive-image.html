@@ -12,7 +12,7 @@
 {{ $alt := "" }}
 {{ $class := "" }}
 {{ $lazy := "true" }}
-{{ $page := "" }}
+{{ $page := .Page }}
 
 {{/* Detect if used as partial (passing a dict) or shortcode */}}
 {{ if reflect.IsMap . }}
@@ -28,7 +28,6 @@
   {{ $alt = .Get "alt" | default $src }}
   {{ $class = .Get "class" }}
   {{ $lazy = .Get "lazy" | default "true" }}
-  {{ $page = .Page }}
 {{ end }}
 
 {{/* --- Core Image Processing Logic (Largely unchanged) --- */}}
@@ -39,8 +38,8 @@
 {{ end }}
 
 {{/* Extract base name without extension using path functions */}}
-{{ $srcBase := path.Base $src }}
-{{ $srcExt := path.Ext $srcBase }}
+{{ $srcBase := path.BaseName $src }}
+{{ $srcExt := path.Ext $src }}
 {{ if $srcExt }}
   {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
 {{ end }}

@@ -2,24 +2,30 @@
   File: layouts/shortcodes/image.html
   Can be used both as shortcode and as partial.
 */}}
-{{/* Detect if used as partial or shortcode */}}
-{{ $ctx := . }}
-{{ if reflect.IsMap . }}
-  {{/* If called as partial, . is a dict */}}
-  {{ $src := index $ctx "src" }}
-  {{ $alt := index $ctx "alt" }}
-  {{ $page := index $ctx "Page" }}
-{{ else }}
-  {{/* If called as shortcode, . is shortcode context */}}
-  {{ $src := .Get "src" }}
-  {{ $alt := .Get "alt" | default $src }}
-  {{ $page := .Page }}
-{{ end }}
 
-{{ $src := .Get "src" }}
-{{ $alt := .Get "alt" | default $src }}
-{{ $class := .Get "class" }}
-{{ $lazy := .Get "lazy" | default "true" }}
+{{/* 初始化所有变量 */}}
+{{ $src := "" }}
+{{ $alt := "" }}
+{{ $class := "" }}
+{{ $lazy := "true" }}
+{{ $page := "" }}
+
+{{/* 检测调用方式并设置变量 */}}
+{{ if reflect.IsMap . }}
+  {{/* 作为 partial 调用时，. 是一个字典 */}}
+  {{ $src = index . "src" | default "" }}
+  {{ $alt = index . "alt" | default $src }}
+  {{ $class = index . "class" | default "" }}
+  {{ $lazy = index . "lazy" | default "true" }}
+  {{ $page = index . "Page" }}
+{{ else }}
+  {{/* 作为 shortcode 调用时，. 是 shortcode 上下文 */}}
+  {{ $src = .Get "src" }}
+  {{ $alt = .Get "alt" | default $src }}
+  {{ $class = .Get "class" }}
+  {{ $lazy = .Get "lazy" | default "true" }}
+  {{ $page = .Page }}
+{{ end }}
 
 {{/* Extract base name without extension using path functions */}}
 {{ $srcBase := path.Base $src }}
@@ -35,11 +41,11 @@
 
 {{/* Get the directory where this post/page is located */}}
 {{ $pagePath := "" }}
-{{ with .Page.File }}
+{{ with $page.File }}
   {{ $pagePath = .Dir }}
 {{ else }}
   {{/* Fallback for pages without File */}}
-  {{ $pagePath = path.Dir .Page.RelPermalink }}
+  {{ $pagePath = path.Dir $page.RelPermalink }}
   {{ if eq $pagePath "." }}
     {{ $pagePath = "" }}
   {{ end }}
@@ -74,7 +80,7 @@
 {{/* Check what AVIF sizes are available */}}
 {{ range $sizes }}
   {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
-  {{ $sizedResource := $.Page.Resources.GetMatch $sizedPath }}
+  {{ $sizedResource := $page.Resources.GetMatch $sizedPath }}
   {{ if $sizedResource }}
     {{ $srcset = $srcset | append (printf "%s %sw" $sizedResource.RelPermalink .) }}
     {{ $availableSizes = $availableSizes | append . }}
@@ -84,7 +90,7 @@
 
 {{/* Check if original size AVIF exists */}}
 {{ $originalAvifPath := printf "%s.avif" $srcBase }}
-{{ $originalAvifResource := .Page.Resources.GetMatch $originalAvifPath }}
+{{ $originalAvifResource := $page.Resources.GetMatch $originalAvifPath }}
 
 {{/* Determine the main src */}}
 {{ $mainSrc := "" }}
@@ -163,6 +169,6 @@
     {{ else }}
       <br>No dimensions file found at: {{ $dimensionsFilePath }}
     {{ end }}
-    <br>Available resources: {{ range .Page.Resources }}{{ .Name }}, {{ end }}
+    <br>Available resources: {{ range $page.Resources }}{{ .Name }}, {{ end }}
   </p>
 {{ end }}

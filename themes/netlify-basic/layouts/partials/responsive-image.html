@@ -1,45 +1,48 @@
 {{/*
-  File: layouts/shortcodes/image.html
-  Multi-size AVIF support with responsive images
+  File: layouts/partials/responsive-image.html
+  Purpose: Renders a responsive AVIF image with srcset, sizes, and dimensions.
+  Expects a context dictionary with:
+  - "page": The current page object ($)
+  - "resource": The Hugo image resource object
+  - "alt": The alt text (string)
+  - "class": Optional CSS class (string)
+  - "lazy": Optional "true" or "false" (string, defaults to "true")
 */}}
-{{ $src := .Get "src" }}
-{{ $alt := .Get "alt" | default $src }}
-{{ $class := .Get "class" }}
-{{ $lazy := .Get "lazy" | default "true" }}
 
-{{/* Extract base name without extension using path functions */}}
+{{/* --- Parameter setup --- */}}
+{{ $page := .page }}
+{{ $resource := .resource }}
+{{ $alt := .alt | default $resource.Name }}
+{{ $class := .class }}
+{{ $lazy := .lazy | default "true" }}
+
+{{/* --- Logic starts here (adapted from your shortcode) --- */}}
+{{ $src := $resource.Name }} {{/* Use resource name instead of path string */}}
 {{ $srcBase := path.Base $src }}
 {{ $srcExt := path.Ext $srcBase }}
 {{ if $srcExt }}
   {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
 {{ end }}
 
-{{/* Try to get dimensions from hidden dimensions file */}}
 {{ $width := "" }}
 {{ $height := "" }}
 {{ $dimensionsFound := false }}
 
-{{/* Get the directory where this post/page is located */}}
 {{ $pagePath := "" }}
-{{ with .Page.File }}
+{{ with $page.File }}
   {{ $pagePath = .Dir }}
 {{ else }}
-  {{/* Fallback for pages without File */}}
-  {{ $pagePath = path.Dir .Page.RelPermalink }}
-  {{ if eq $pagePath "." }}
-    {{ $pagePath = "" }}
-  {{ end }}
+  {{ $pagePath = path.Dir $page.RelPermalink }}
+  {{ if eq $pagePath "." }}{{ $pagePath = "" }}{{ end }}
 {{ end }}
 
 {{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
 
-{{/* Try to read the dimensions file */}}
 {{ if fileExists $dimensionsFilePath }}
   {{ $dimensionsContent := readFile $dimensionsFilePath }}
   {{ if $dimensionsContent }}
     {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
     {{ with (index $dimensionsData $srcBase) }}
-      {{/* Parse the "widthxheight" format */}}
       {{ $dimensionStr := . }}
       {{ $parts := split $dimensionStr "x" }}
       {{ if eq (len $parts) 2 }}
@@ -51,16 +54,15 @@
   {{ end }}
 {{ end }}
 
-{{/* Build srcset for different sizes */}}
 {{ $srcset := slice }}
 {{ $sizes := slice "480" "720" "960" "1440" "1920" "2880" "3840" }}
 {{ $availableSizes := slice }}
 {{ $sizeToUrl := dict }}
 
-{{/* Check what AVIF sizes are available */}}
 {{ range $sizes }}
   {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
-  {{ $sizedResource := $.Page.Resources.GetMatch $sizedPath }}
+  {{/* Use the page's resources to find the match */}}
+  {{ $sizedResource := $page.Resources.GetMatch $sizedPath }}
   {{ if $sizedResource }}
     {{ $srcset = $srcset | append (printf "%s %sw" $sizedResource.RelPermalink .) }}
     {{ $availableSizes = $availableSizes | append . }}
@@ -68,24 +70,16 @@
   {{ end }}
 {{ end }}
 
-{{/* Check if original size AVIF exists */}}
 {{ $originalAvifPath := printf "%s.avif" $srcBase }}
-{{ $originalAvifResource := .Page.Resources.GetMatch $originalAvifPath }}
+{{ $originalAvifResource := $page.Resources.GetMatch $originalAvifPath }}
 
-{{/* Determine the main src */}}
 {{ $mainSrc := "" }}
 
 {{ if $originalAvifResource }}
   {{ $mainSrc = $originalAvifResource.RelPermalink }}
   {{ if $dimensionsFound }}
-    {{/* Only add original size if it's not already in the list */}}
     {{ $widthInList := false }}
-    {{ range $availableSizes }}
-      {{ if eq . $width }}
-        {{ $widthInList = true }}
-        {{ break }}
-      {{ end }}
-    {{ end }}
+    {{ range $availableSizes }}{{ if eq . $width }}{{ $widthInList = true }}{{ break }}{{ end }}{{ end }}
     {{ if not $widthInList }}
       {{ $srcset = $srcset | append (printf "%s %sw" $originalAvifResource.RelPermalink $width) }}
       {{ $availableSizes = $availableSizes | append $width }}
@@ -93,62 +87,49 @@
     {{ end }}
   {{ end }}
 {{ else if gt (len $availableSizes) 0 }}
-  {{/* Use largest available size as main src */}}
   {{ $sortedAvailable := sort $availableSizes }}
   {{ $largestAvailableSize := index (last 1 $sortedAvailable) 0 }}
   {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
 {{ end }}
 
-{{/* Generate dynamic sizes attribute based on available sizes */}}
 {{ $sizesAttr := "" }}
 {{ if gt (len $availableSizes) 0 }}
   {{ $sortedSizes := sort $availableSizes }}
   {{ $sizeRules := slice }}
-  
   {{ range $i, $size := $sortedSizes }}
     {{ if lt $i (sub (len $sortedSizes) 1) }}
       {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
     {{ end }}
   {{ end }}
-  
-  {{/* Add the largest size as the default */}}
   {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
   {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
-  
   {{ $sizesAttr = delimit $sizeRules ", " }}
 {{ end }}
 
-{{/* If we have AVIF files, render the optimized image */}}
 {{ if $mainSrc }}
   <img 
     src="{{ $mainSrc }}" 
     {{ if gt (len $srcset) 0 }}
     srcset="{{ delimit $srcset ", " }}"
-    {{ if $sizesAttr }}
-    sizes="{{ $sizesAttr }}"
-    {{ end }}
+    {{ if $sizesAttr }}sizes="{{ $sizesAttr }}"{{ end }}
     {{ end }}
     alt="{{ $alt }}" 
-    {{ with $class }}class="{{ . }}" {{ end }}
+    {{ with $class }}class="{{ . }}"{{ end }}
     {{ if $dimensionsFound }}
     width="{{ $width }}" 
     height="{{ $height }}"
     {{ end }}
-    {{ if eq $lazy "true" }}
-    loading="lazy"
-    {{ end }}
+    {{ if eq $lazy "true" }}loading="lazy"{{ end }}
     decoding="async">
 {{ else }}
   <p style="color: red;">
     <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }})
     {{ if fileExists $dimensionsFilePath }}
       <br>Dimensions file: {{ $dimensionsFilePath }}
-      {{ if $dimensionsFound }}
-      <br>Dimensions: {{ $width }}x{{ $height }}
-      {{ end }}
+      {{ if $dimensionsFound }}<br>Dimensions: {{ $width }}x{{ $height }}{{ end }}
     {{ else }}
       <br>No dimensions file found at: {{ $dimensionsFilePath }}
     {{ end }}
-    <br>Available resources: {{ range .Page.Resources }}{{ .Name }}, {{ end }}
+    <br>Available resources: {{ range $page.Resources }}{{ .Name }}, {{ end }}
   </p>
 {{ end }}

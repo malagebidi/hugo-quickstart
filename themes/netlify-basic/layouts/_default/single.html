@@ -1,15 +1,14 @@
 {{ define "main" }}
-<aside class="md:basis-1/4 md:text-right">
-  <h1 class="text-2xl font-bold leading-tight mb-4 md:mb-0"><a class="hover:text-blue-500 dark:hover:text-blue-400" href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></h1>
+<aside>
+  <h1><a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></h1>
 </aside>
-<main class="w-full max-w-3xl prose dark:prose-invert">
+<main>
   {{ with .Params.featured }}
-    <div class="relative w-full aspect-video overflow-hidden not-prose mb-8">
+    <div class="entry-featured">
       {{ partial "image.html" (dict 
         "src" . 
         "alt" $.Title 
         "Page" $.Page
-        "class" "absolute inset-0 w-full h-full object-cover m-0"
         "lazy" "false"
       ) }}
     </div>
@@ -18,4 +17,3 @@
   {{ .Content }}
 </main>
 {{ end }}
-

@@ -3,8 +3,11 @@ module.exports = {
     './content/**/*.md',
     './themes/**/layouts/**/*.html'
   ],
+  darkMode: 'class',
   theme: {
     extend: {},
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'), // <-- 启用插件
+  ],
 }

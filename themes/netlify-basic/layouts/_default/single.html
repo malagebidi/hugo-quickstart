@@ -6,7 +6,12 @@
   {{ with .Params.featured }}
     {{ with $.Page.Resources.GetMatch . }}
       <div class="entry-featured">
-        <img src="{{ .RelPermalink }}" alt="{{ $.Title }}" loading="lazy">
+        {{ partial "responsive-image.html" (dict 
+            "src" .Name 
+            "alt" $.Title 
+            "Page" $
+            "class" "featured-image"
+        ) }}
       </div>
     {{ end }}
   {{ end }}
@@ -14,3 +19,4 @@
   {{ .Content }}
 </main>
 {{ end }}
+

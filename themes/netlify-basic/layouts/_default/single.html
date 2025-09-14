@@ -4,14 +4,13 @@
 </aside>
 <main>
   {{ with .Params.featured }}
-    {{ with $.Page.Resources.GetMatch . }}
-      <div class="entry-featured">
-        {{< image src=. alt=$.Title >}}
-      </div>
-    {{ end }}
+    <div class="entry-featured">
+      {{< image src=. alt=$.Title >}}
+    </div>
   {{ end }}
   <h1 class="entry-title">{{ .Title }}</h1>
   {{ .Content }}
 </main>
 {{ end }}
+
 

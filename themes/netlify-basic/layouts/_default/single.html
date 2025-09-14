@@ -4,16 +4,17 @@
 </aside>
 <main>
   {{ with .Params.featured }}
-    {{ with $.Page.Resources.GetMatch . }}
-      <div class="entry-featured">
-        <img src="{{ .RelPermalink }}" alt="{{ $.Title }}" decoding="async">
-      </div>
-    {{ end }}
+    <div class="entry-featured">
+      {{ partial "shortcodes/image.html" (dict 
+        "src" . 
+        "alt" $.Title 
+        "Page" $.Page
+        "lazy" "true"
+      ) }}
+    </div>
   {{ end }}
+  
   <h1 class="entry-title">{{ .Title }}</h1>
   {{ .Content }}
 </main>
 {{ end }}
-
-
-

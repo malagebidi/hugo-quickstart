@@ -4,15 +4,13 @@
   It can be called from a shortcode or directly from other templates.
 */}}
 
-<h1 style="color: deeppink; background: yellow; font-size: 2rem;">DEBUG: responsive-image.html PARTIAL IS BEING CALLED!</h1>
-
-{{/* --- Unified Context Handling --- */}}
-{{/* Initialize variables */}}
+{{/* --- Unified Context Handling (Corrected Version) --- */}}
+{{/* Initialize variables in the outer scope */}}
 {{ $src := "" }}
 {{ $alt := "" }}
 {{ $class := "" }}
 {{ $lazy := "true" }}
-{{ $page := .Page }}
+{{ $page := .Page }} {{/* Default context for shortcodes */}}
 
 {{/* Detect if used as partial (passing a dict) or shortcode */}}
 {{ if reflect.IsMap . }}
@@ -21,6 +19,7 @@
   {{ $alt = .alt }}
   {{ $class = .class | default "" }}
   {{ $lazy = .lazy | default "true" }}
+  {{/* IMPORTANT FIX: Get the Page context from the dictionary key "Page" */}}
   {{ $page = .Page }}
 {{ else }}
   {{/* Called as a shortcode: parameters are accessed via .Get */}}
@@ -28,9 +27,10 @@
   {{ $alt = .Get "alt" | default $src }}
   {{ $class = .Get "class" }}
   {{ $lazy = .Get "lazy" | default "true" }}
+  {{/* For shortcodes, the default .$Page context is already correct */}}
 {{ end }}
 
-{{/* --- Core Image Processing Logic (Largely unchanged) --- */}}
+{{/* --- Core Image Processing Logic --- */}}
 
 {{/* Ensure src is provided */}}
 {{ if not $src }}
@@ -76,80 +76,48 @@
 
 {{/* Build srcset for different AVIF sizes */}}
 {{ $srcset := slice }}
-{{ $sizes := slice "480" "720" "960" "1440" "1920" "2880" "3840" }}
-{{ $availableSizes := slice }}
-{{ $sizeToUrl := dict }}
+{{ $sizes := slice "480" "720" "960" "1440" "1920" }} {{/* Removed larger sizes for practicality unless needed */}}
+{{ $availableResources := slice }}
 
 {{ range $sizes }}
   {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
   {{ with $page.Resources.GetMatch $sizedPath }}
     {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink .) }}
-    {{ $availableSizes = $availableSizes | append . }}
-    {{ $sizeToUrl = merge $sizeToUrl (dict . .RelPermalink) }}
+    {{ $availableResources = $availableResources | append . }}
   {{ end }}
 {{ end }}
 
-{{/* Check if original size AVIF exists */}}
-{{ $originalAvifPath := printf "%s.avif" $srcBase }}
-{{ $originalAvifResource := $page.Resources.GetMatch $originalAvifPath }}
+{{/* Find the original (un-suffixed) AVIF resource to use as the main src and fallback */}}
+{{ $mainResource := $page.Resources.GetMatch (printf "%s.avif" $srcBase) }}
 
-{{/* Determine the main src */}}
-{{ $mainSrc := "" }}
-
-{{ if $originalAvifResource }}
-  {{ $mainSrc = $originalAvifResource.RelPermalink }}
-  {{ if $dimensionsFound }}
-    {{ if not (in $availableSizes $width) }}
-      {{ $srcset = $srcset | append (printf "%s %sw" .RelPermalink $width) }}
-      {{ $availableSizes = $availableSizes | append $width }}
-      {{ $sizeToUrl = merge $sizeToUrl (dict $width .RelPermalink) }}
-    {{ end }}
-  {{ end }}
-{{ else if gt (len $availableSizes) 0 }}
-  {{ $sortedAvailable := sort $availableSizes }}
-  {{ $largestAvailableSize := index (last 1 $sortedAvailable) 0 }}
-  {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
+{{/* If no main resource found, but we have sized versions, pick the largest as fallback */}}
+{{ if (and (not $mainResource) (gt (len $availableResources) 0)) }}
+  {{ $mainResource = index (last 1 (sort $availableResources "Width" "desc")) 0 }}
 {{ end }}
 
-{{/* Generate dynamic sizes attribute based on available sizes */}}
-{{ $sizesAttr := "" }}
-{{ if gt (len $availableSizes) 0 }}
-  {{ $sortedSizes := sort $availableSizes }}
-  {{ $sizeRules := slice }}
-  {{ range $i, $size := $sortedSizes }}
-    {{ if lt $i (sub (len $sortedSizes) 1) }}
-      {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
-    {{ end }}
-  {{ end }}
-  {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
-  {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
-  {{ $sizesAttr = delimit $sizeRules ", " }}
-{{ end }}
 
 {{/* --- Final HTML Rendering --- */}}
-{{ if $mainSrc }}
+{{ if $mainResource }}
   <img 
-    src="{{ $mainSrc }}" 
-    {{ with $srcset }}{{ if gt (len .) 0 }}srcset="{{ delimit . ", " }}"{{ end }}{{ end }}
-    {{ with $sizesAttr }}sizes="{{ . }}"{{ end }}
+    src="{{ $mainResource.RelPermalink }}" 
+    {{ with $srcset }}{{ if gt (len .) 0 }}srcset="{{ delimit . ", " | safeHTMLAttr }}"{{ end }}{{ end }}
+    sizes="(max-width: {{ $mainResource.Width }}px) 100vw, {{ $mainResource.Width }}px"
     alt="{{ $alt }}" 
     {{ with $class }}class="{{ . }}"{{ end }}
-    {{ if $dimensionsFound }}
-    width="{{ $width }}" 
-    height="{{ $height }}"
-    {{ end }}
+    {{/* Use resource's dimensions if dimensions file fails */}}
+    width="{{ $mainResource.Width }}" 
+    height="{{ $mainResource.Height }}"
     {{ if eq $lazy "true" }}loading="lazy"{{ end }}
     decoding="async">
 {{ else }}
-  <p style="color: red;">
-    <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }})
-    <br>Page: {{ $page.File.Path }}
-    {{ if fileExists $dimensionsFilePath }}
-      <br>Dimensions file: {{ $dimensionsFilePath }} (found)
-      <br>Dimensions data read: {{ $width }}x{{ $height }}
-    {{ else }}
-      <br>Dimensions file not found: {{ $dimensionsFilePath }}
-    {{ end }}
-    <br>Available page resources: {{ range $page.Resources }}{{ .Name }}, {{ end }}
+  <p style-="color: red; background: #fff0f0; border: 1px solid red; padding: 1em;">
+    <strong>Image Error:</strong> Could not find any matching AVIF resources for '{{ $src }}' (base: '{{ $srcBase }}').
+    <br><strong>Page:</strong> {{ $page.File.Path | default "unknown path" }}
+    <br><strong>Checked for:</strong>
+    <ul>
+      <li>{{ $srcBase }}.avif (as main source)</li>
+      <li>{{ $srcBase }}_*w.avif (for srcset)</li>
+    </ul>
+    <strong>Available resources in this bundle:</strong> {{ range $page.Resources }}{{ .Name }}, {{ end }}
   </p>
 {{ end }}

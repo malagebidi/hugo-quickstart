@@ -1,7 +1,6 @@
 {
   "scripts": {
-    "build:css": "npx @tailwindcss/cli -i ./assets/css/input.css -o ./assets/css/output.css --minify",
-    "build": "npm run build:css && hugo --gc --minify"
+    "build": "npm run build && hugo --gc --minify"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.13",

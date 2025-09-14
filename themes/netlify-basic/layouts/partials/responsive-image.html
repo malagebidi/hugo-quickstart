@@ -1,41 +1,32 @@
-{{/*
-  File: layouts/partials/responsive-image.html
-  Purpose: Renders a responsive AVIF image with srcset, sizes, and dimensions.
-  Expects a context dictionary with:
-  - "page": The current page object ($)
-  - "resource": The Hugo image resource object
-  - "alt": The alt text (string)
-  - "class": Optional CSS class (string)
-  - "lazy": Optional "true" or "false" (string, defaults to "true")
-*/}}
-
-{{/* --- Parameter setup --- */}}
-{{ $page := .page }}
-{{ $resource := .resource }}
-{{ $alt := .alt | default $resource.Name }}
+{{/* Partial template: layouts/partials/responsive-image.html */}}
+{{/* Receives a context dictionary with "src", "alt", "class", "page", etc. */}}
+{{ $src := .src }}
+{{ $alt := .alt | default .src }}
 {{ $class := .class }}
 {{ $lazy := .lazy | default "true" }}
-
-{{/* --- Logic starts here (adapted from your shortcode) --- */}}
-{{ $src := $resource.Name }} {{/* Use resource name instead of path string */}}
+{{ $page := .page }} {{/* Crucial: We need the page context to find resources */}}
+{{/* --- 从这里开始，下面的代码需要把所有的 $.Page 替换为 $page --- */}}
+{{/* Extract base name without extension using path functions */}}
 {{ $srcBase := path.Base $src }}
 {{ $srcExt := path.Ext $srcBase }}
 {{ if $srcExt }}
   {{ $srcBase = strings.TrimSuffix $srcBase $srcExt }}
 {{ end }}
-
+{{/* Try to get dimensions from hidden dimensions file */}}
 {{ $width := "" }}
 {{ $height := "" }}
 {{ $dimensionsFound := false }}
-
+{{/* Get the directory where this post/page is located */}}
 {{ $pagePath := "" }}
 {{ with $page.File }}
   {{ $pagePath = .Dir }}
 {{ else }}
+  {{/* Fallback for pages without File */}}
   {{ $pagePath = path.Dir $page.RelPermalink }}
-  {{ if eq $pagePath "." }}{{ $pagePath = "" }}{{ end }}
+  {{ if eq $pagePath "." }}
+    {{ $pagePath = "" }}
+  {{ end }}
 {{ end }}
-
 {{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
 
 {{ if fileExists $dimensionsFilePath }}

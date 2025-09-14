@@ -1,9 +1,15 @@
 {
+  "name": "my-hugo-site",
+  "version": "1.0.0",
+  "description": "Hugo site with Tailwind CSS",
+  "main": "index.js",
   "scripts": {
-    "build": "npm run build && hugo --gc --minify"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "author": "",
+  "license": "ISC",
   "devDependencies": {
-    "@tailwindcss/cli": "^4.1.13",
-    "tailwindcss": "^4.1.13"
+    "@tailwindcss/cli": "^4.1",
+    "tailwindcss": "^4.1"
   }
 }

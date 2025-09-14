@@ -4,15 +4,14 @@
 </aside>
 <main>
   {{ with .Params.featured }}
-    {{ with $.Page.Resources.GetMatch . }}
-      <div class="entry-featured">
-        {{ partial "responsive-image.html" (dict "page" $.Page "resource" . "alt" $.Title "class" "" "lazy" "false" ) }}
-      </div>
-    {{ end }}
+    <div class="entry-featured">
+      {{ partial "responsive-image.html" (dict "page" $ "src" . "alt" $.Title "class" "featured-image" "lazy" "false" ) }}
+    </div>
   {{ end }}
   <h1 class="entry-title">{{ .Title }}</h1>
   {{ .Content }}
 </main>
 {{ end }}
+
 
 

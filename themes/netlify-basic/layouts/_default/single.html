@@ -1,6 +1,6 @@
 {{ define "main" }}
 <aside>
-  <a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a>
+  <h1>{{ .Site.Title }}</h1>
 </aside>
 <main>
   {{ with .Params.featured }}
@@ -17,6 +17,7 @@
   {{ .Content }}
 </main>
 {{ end }}
+
 
 
 

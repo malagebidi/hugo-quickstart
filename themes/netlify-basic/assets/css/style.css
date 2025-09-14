@@ -35,10 +35,9 @@ h3 {
 }
 
 aside {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 0;
-    text-align: right
+    text-align: right;
+    flex: 0 0 240px;
+    margin-right: auto
 }
 
 main {

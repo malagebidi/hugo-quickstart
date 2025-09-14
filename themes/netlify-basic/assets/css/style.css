@@ -9,6 +9,11 @@ body {
     line-height: 1.625
 }
 
+a:visited {
+    color: #007bff;
+    text-decoration: none
+}
+
 h1 {
     line-height: 1.25
 }

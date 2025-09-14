@@ -1,7 +1,21 @@
 {{/*
   File: layouts/shortcodes/image.html
-  Multi-size AVIF support with responsive images
+  Can be used both as shortcode and as partial.
 */}}
+{{/* Detect if used as partial or shortcode */}}
+{{ $ctx := . }}
+{{ if reflect.IsMap . }}
+  {{/* If called as partial, . is a dict */}}
+  {{ $src := index $ctx "src" }}
+  {{ $alt := index $ctx "alt" }}
+  {{ $page := index $ctx "Page" }}
+{{ else }}
+  {{/* If called as shortcode, . is shortcode context */}}
+  {{ $src := .Get "src" }}
+  {{ $alt := .Get "alt" | default $src }}
+  {{ $page := .Page }}
+{{ end }}
+
 {{ $src := .Get "src" }}
 {{ $alt := .Get "alt" | default $src }}
 {{ $class := .Get "class" }}

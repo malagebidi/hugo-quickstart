@@ -81,26 +81,26 @@
 
 {{/* 根据图片类型调整尺寸 */}}
 {{ if eq $type "featured" }}
-  {{/* 特色图片：强制16:9比例，最大720px */}}
-  {{ $width = "720" }}
-  {{ $height = "405" }}
+  {{/* 特色图片：强制16:9比例，最大768px */}}
+  {{ $width = "768" }}
+  {{ $height = "432" }}
   {{ $dimensionsFound = true }}
 {{ else if eq $type "content" }}
-  {{/* 文章内图片：保持原比例但限制最大宽度720px */}}
+  {{/* 文章内图片：保持原比例但限制最大宽度768px */}}
   {{ if $dimensionsFound }}
     {{ $originalWidth := int $width }}
     {{ $originalHeight := int $height }}
-    {{ if gt $originalWidth 720 }}
+    {{ if gt $originalWidth 768 }}
       {{ $ratio := div (float $originalHeight) (float $originalWidth) }}
-      {{ $width = "720" }}
-      {{ $height = printf "%.0f" (mul 720.0 $ratio) }}
+      {{ $width = "768" }}
+      {{ $height = printf "%.0f" (mul 768.0 $ratio) }}
     {{ end }}
   {{ end }}
 {{ end }}
 
-{{/* Build srcset for different sizes - 限制最大720px */}}
+{{/* Build srcset for different sizes - 限制最大768px */}}
 {{ $srcset := slice }}
-{{ $sizes := slice "480" "720" "960" "1440" "1920" "2880" "3840" }}
+{{ $sizes := slice "256" "384" "512" "768" "1024" "1536" "2048" "3072" "4096" }}
 {{ $availableSizes := slice }}
 {{ $sizeToUrl := dict }}
 
@@ -125,9 +125,9 @@
 {{ if $originalAvifResource }}
   {{ $mainSrc = $originalAvifResource.RelPermalink }}
   {{ if $dimensionsFound }}
-    {{/* Only add original size if it's not already in the list and not larger than 720px */}}
+    {{/* Only add original size if it's not already in the list and not larger than 768px */}}
     {{ $originalWidthInt := int $width }}
-    {{ if le $originalWidthInt 720 }}
+    {{ if le $originalWidthInt 768 }}
       {{ $widthInList := false }}
       {{ range $availableSizes }}
         {{ if eq . $width }}
@@ -149,7 +149,7 @@
   {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
 {{ end }}
 
-{{/* 生成适配720px限制的sizes属性 */}}
+{{/* 生成适配768px限制的sizes属性 */}}
 {{ $sizesAttr := "" }}
 {{ if gt (len $availableSizes) 0 }}
   {{ $sortedSizes := sort $availableSizes }}
@@ -158,25 +158,25 @@
   {{ range $i, $size := $sortedSizes }}
     {{ $sizeInt := int $size }}
     {{ if lt $i (sub (len $sortedSizes) 1) }}
-      {{ if le $sizeInt 720 }}
+      {{ if le $sizeInt 768 }}
         {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
       {{ end }}
     {{ end }}
   {{ end }}
   
-  {{/* Add the default size, but cap at 720px */}}
+  {{/* Add the default size, but cap at 768px */}}
   {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
   {{ $largestInt := int $largestAvailable }}
-  {{ if le $largestInt 720 }}
+  {{ if le $largestInt 768 }}
     {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
   {{ else }}
-    {{ $sizeRules = $sizeRules | append "720px" }}
+    {{ $sizeRules = $sizeRules | append "768px" }}
   {{ end }}
   
   {{ $sizesAttr = delimit $sizeRules ", " }}
 {{ else }}
-  {{/* 默认sizes，限制720px */}}
-  {{ $sizesAttr = "(max-width: 480px) 480px, (max-width: 720px) 720px, 720px" }}
+  {{/* 默认sizes，限制768px */}}
+  {{ $sizesAttr = "(max-width: 256px) 256px, (max-width: 384px) 384px, (max-width: 512px) 512px, (max-width: 768px) 768px, 768px" }}
 {{ end }}
 
 {{/* If we have AVIF files, render the optimized image */}}

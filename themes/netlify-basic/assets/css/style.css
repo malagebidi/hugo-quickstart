@@ -38,8 +38,7 @@ progress {
 }
 
 html {
-  font-family: var(--sans-font);
-  scroll-behavior: smooth;
+  font-family: var(--sans-font)
 }
 
 body {

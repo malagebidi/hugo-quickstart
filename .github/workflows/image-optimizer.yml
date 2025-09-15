@@ -32,7 +32,21 @@ jobs:
           git config --global user.email 'actions@github.com'
           git pull origin main || true
       - name: '🔧 Install Dependencies'
-        run: sudo apt-get update && sudo apt-get install -y imagemagick jq
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          
+          # 获取最新 release 的 assets 列表
+          ASSETS=$(curl -s https://api.github.com/repos/ImageMagick/ImageMagick/releases/latest | jq -r '.assets[].browser_download_url')
+
+          # 过滤出 gcc 版 AppImage
+          APPIMAGE_URL=$(echo "$ASSETS" | grep 'gcc-x86_64.AppImage$' | head -n 1)
+          echo "Downloading from: $APPIMAGE_URL"
+
+          # 下载并安装
+          curl -L "$APPIMAGE_URL" -o /usr/local/bin/magick
+          chmod +x /usr/local/bin/magick
+          ln -s /usr/local/bin/magick /usr/local/bin/identify
+          ln -s /usr/local/bin/magick /usr/local/bin/convert
       - name: '🔄 Find Images to Process'
         id: find_files
         run: |

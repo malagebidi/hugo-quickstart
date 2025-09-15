@@ -42,11 +42,20 @@ jobs:
           APPIMAGE_URL=$(echo "$ASSETS" | grep 'gcc-x86_64.AppImage$' | head -n 1)
           echo "Downloading from: $APPIMAGE_URL"
 
-          # 下载并安装
-          curl -L "$APPIMAGE_URL" -o /usr/local/bin/magick
-          chmod +x /usr/local/bin/magick
-          ln -s /usr/local/bin/magick /usr/local/bin/identify
-          ln -s /usr/local/bin/magick /usr/local/bin/convert
+          # 下载 AppImage
+          curl -L "$APPIMAGE_URL" -o ImageMagick.AppImage
+          chmod +x ImageMagick.AppImage
+          
+          # 解压（会生成 squashfs-root/）
+          ./ImageMagick.AppImage --appimage-extract
+          
+          # 移动出来作为 magick 命令
+          sudo mv squashfs-root/usr/bin/magick /usr/local/bin/magick
+          sudo chmod +x /usr/local/bin/magick
+          
+          # 建立别名
+          sudo ln -s /usr/local/bin/magick /usr/local/bin/identify
+          sudo ln -s /usr/local/bin/magick /usr/local/bin/convert
       - name: '🔄 Find Images to Process'
         id: find_files
         run: |

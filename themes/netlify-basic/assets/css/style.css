@@ -1,3 +1,7 @@
+html {
+    color-scheme: light dark;
+}
+
 body {
     font-family: -apple-system, segoe ui, Roboto, noto sans, Arial, liberation sans, pingfang sc, microsoft yahei, noto sans sc, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
     margin: 0;
@@ -72,10 +76,14 @@ main {
     margin-bottom: 1em
 }
 
-.post-header > h2{
+.post-header > h2 {
     font-size: 2em;
     line-height: 1;
     margin-bottom: .25em
+}
+
+.post-header > time {
+    opacity: 0.6
 }
 
 .post-content img {

@@ -174,8 +174,8 @@ jobs:
               if [ "$success" != "true" ]; then
                 echo "      ⚠️ Failed to generate original after $MAX_ATTEMPTS attempts"
               fi
-            elif [ "$width" -gt 3840 ]; then
-              echo "  - Skipping original size AVIF (${width}x${height} > 3840w limit)"
+            elif [ "$width" -gt 4096 ]; then
+              echo "  - Skipping original size AVIF (${width}x${height} > 4096w limit)"
             fi
             
             # 处理各个尺寸

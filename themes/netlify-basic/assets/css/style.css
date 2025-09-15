@@ -83,7 +83,7 @@ main {
 }
 
 .post-header > time {
-    color: color-mix(in srgb, currentColor 60%, transparent)
+    opacity: 0.6
 }
 
 .post-content img {

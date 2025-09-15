@@ -6,11 +6,12 @@ body {
     font-family: -apple-system, segoe ui, Roboto, noto sans, Arial, liberation sans, pingfang sc, microsoft yahei, noto sans sc, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
     margin: 0;
     padding: 0 1em;
-    line-height: 1.625
+    line-height: 1.625;
+    color: #212121
 }
 
-a:link, a:visited {
-    color: #0000EE
+a, a:visited {
+    color: #0d47a1
 }
 
 h1 {

@@ -5,10 +5,15 @@ name = "Netlify Basic"
 license = "MIT"
 description = "A very basic theme for a quickstart template"
 homepage = "http://hugo-quickstart.netlify.com"
-tags = []
+tags = ["blog"]
 features = []
 min_version = "0.41.0"
 
 [author]
-  name = "Netlify Template Team"
-  homepage = "https://github.com/netlify-templates"
+  name = "Deng Yang"
+  homepage = "https://dengya.ng/"
+
+[original]
+    author = "Netlify Template Team"
+    homepage = "https://github.com/netlify-templates/hugo-quickstart"
+    repo = "https://github.com/netlify-templates"

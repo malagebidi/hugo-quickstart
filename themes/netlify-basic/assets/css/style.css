@@ -52,13 +52,13 @@ main {
     width: 100%
 }
 
-.entry-featured {
+.post-featured {
     max-width: 720px;
     width: 100%;
     margin-bottom: 2em
 }
 
-.entry-featured img {
+.post-featured img {
     width: 100%;
     height: auto;
     aspect-ratio: 16 / 9;
@@ -67,7 +67,7 @@ main {
     margin: 0
 }
 
-.entry-title {
+.post-title {
     font-size: 2em;
     line-height: 1;
     margin-bottom: 1em

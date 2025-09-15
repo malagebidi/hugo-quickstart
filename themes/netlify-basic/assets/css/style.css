@@ -59,6 +59,7 @@ main {
 }
 
 .post-featured img {
+    display: block;
     width: 100%;
     height: auto;
     aspect-ratio: 16 / 9;
@@ -67,19 +68,19 @@ main {
     margin: 0
 }
 
-.post-header h2{
+.post-header > h2{
     font-size: 2em;
     line-height: 1;
 }
 
-main img {
+.post-content img {
     display: block;
     margin: 1em 0;
     max-width: 100%;
     height: auto
 }
 
-main>*:last-child {
+.post-content>*:last-child {
     margin-bottom: 0
 }
 

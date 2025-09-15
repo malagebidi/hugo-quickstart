@@ -3,7 +3,7 @@ title: "WordPress to Hugo"
 slug: "wp-to-hugo"
 date: 2025-09-06T18:05:00+08:00
 draft: false
-featured: "intj_2.avif"
+featured: "p2557515219.avif"
 ---
 
 为什么是 WordPress，为什么又转到 Hugo，这篇文章将是一个历史大回溯。✌️

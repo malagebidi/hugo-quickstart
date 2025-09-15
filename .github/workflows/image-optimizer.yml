@@ -51,7 +51,7 @@ jobs:
                 width=$(echo "$dimensions" | cut -d'x' -f1)
                 
                 # 定义需要的尺寸
-                sizes="480 720 960 1440 1920 2880 3840"
+                sizes="256 384 512 768 1024 1536 2048 3072 4096"
                 
                 
                 # 检查各个尺寸的 AVIF
@@ -116,10 +116,10 @@ jobs:
             echo "  Original dimensions: ${width}x${height}"
             
             # 定义需要生成的尺寸
-            sizes="480 720 960 1440 1920 2880 3840"
+            sizes="256 384 512 768 1024 1536 2048 3072 4096"
             
-            # 检查原图处理（只有宽度<=3840且不存在对应AVIF的才处理）
-            if [ "$width" -le 3840 ] && [ ! -f "${base_path}.avif" ]; then
+            # 检查原图处理（只有宽度<=4096且不存在对应AVIF的才处理）
+            if [ "$width" -le 4096 ] && [ ! -f "${base_path}.avif" ]; then
               echo "  - Will generate original size AVIF (${width}x${height})"
               
               # 处理原图

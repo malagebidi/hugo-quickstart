@@ -1,9 +1,13 @@
+:root {
+  --sans-font: -apple-system, segoe ui, Roboto, noto sans, Arial, liberation sans, pingfang sc, microsoft yahei, noto sans sc, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
+}
+
 html {
-    color-scheme: light dark;
+  font-family: var(--sans-font);
+  scroll-behavior: smooth;
 }
 
 body {
-    font-family: -apple-system, segoe ui, Roboto, noto sans, Arial, liberation sans, pingfang sc, microsoft yahei, noto sans sc, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
     margin: 0;
     padding: 0 1em;
     line-height: 1.625;

@@ -1,8 +1,40 @@
 :root {
   --sans-font: -apple-system, segoe ui, Roboto, noto sans, Arial, liberation sans, pingfang sc, microsoft yahei, noto sans sc, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
+
+  /* Default (light) theme */
   --bg: #fff;
   --text: #212121;
   --accent: #0d47a1;
+}
+
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #212121;
+    --text: #dcdcdc;
+    --accent: #ffb300;
+  }
+  /* Add a bit of transparency so light media isn't so glaring in dark mode */
+  img,
+  video {
+    opacity: 0.8;
+  }
+}
+
+/* Reset box-sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Reset default appearance */
+textarea,
+select,
+input,
+progress {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 html {

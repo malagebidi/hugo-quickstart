@@ -78,8 +78,10 @@ main {
     margin-bottom: .25em
 }
 
-time {
-    opacity: 0.5
+.post-date {
+    opacity: 0.5;
+    display: block;
+    line-height: 1
 }
 
 .post-content img {

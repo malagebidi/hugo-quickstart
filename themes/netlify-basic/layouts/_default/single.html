@@ -15,8 +15,14 @@
     </div>
   {{ end }}
   <h2 class="entry-title">{{ .Title }}</h2>
+  <div class="entry-meta">
+      <time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">
+        {{ .Date.Format "2006-01-02" }}
+      </time>
+  </div>
   <div class="entry-content">{{ .Content }}</div>
 </main>
 {{ end }}
+
 
 

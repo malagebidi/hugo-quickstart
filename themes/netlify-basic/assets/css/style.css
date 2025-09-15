@@ -52,13 +52,13 @@ main {
     width: 100%
 }
 
-.post-featured {
+.featured-image {
     max-width: 720px;
     width: 100%;
     margin-bottom: 2em
 }
 
-.post-featured img {
+.featured-image img {
     display: block;
     width: 100%;
     height: auto;
@@ -69,7 +69,7 @@ main {
 }
 
 .post-header {
-    margin-bottom: 2em
+    margin-bottom: 1em
 }
 
 .post-header > h2{

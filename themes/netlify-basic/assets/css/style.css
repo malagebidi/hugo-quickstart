@@ -68,9 +68,14 @@ main {
     margin: 0
 }
 
+.post-header {
+    margin-bottom: 2em
+}
+
 .post-header > h2{
     font-size: 2em;
     line-height: 1;
+    margin-bottom: .25em
 }
 
 .post-content img {

@@ -106,8 +106,25 @@
 
 {{/* Check what AVIF sizes are available */}}
 {{ range $sizes }}
-  {{ $sizedPath := printf "%s_%sw.avif" $srcBase . }}
-  {{ $sizedResource := $page.Resources.GetMatch $sizedPath }}
+  {{ $sizedPath := "" }}
+  {{ $sizedResource := "" }}
+  
+  {{/* 如果是特色图片，优先查找16:9版本 */}}
+  {{ if eq $type "featured" }}
+    {{ $sizedPath = printf "%s_%sw_16x9.avif" $srcBase . }}
+    {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
+    
+    {{/* 如果16:9版本不存在，fallback到常规版本 */}}
+    {{ if not $sizedResource }}
+      {{ $sizedPath = printf "%s_%sw.avif" $srcBase . }}
+      {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
+    {{ end }}
+  {{ else }}
+    {{/* 内容图片使用常规版本 */}}
+    {{ $sizedPath = printf "%s_%sw.avif" $srcBase . }}
+    {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
+  {{ end }}
+  
   {{ if $sizedResource }}
     {{ $srcset = $srcset | append (printf "%s %sw" $sizedResource.RelPermalink .) }}
     {{ $availableSizes = $availableSizes | append . }}
@@ -116,8 +133,17 @@
 {{ end }}
 
 {{/* Check if original size AVIF exists */}}
-{{ $originalAvifPath := printf "%s.avif" $srcBase }}
-{{ $originalAvifResource := $page.Resources.GetMatch $originalAvifPath }}
+{{ $originalAvifPath := "" }}
+{{ $originalAvifResource := "" }}
+
+{{ if eq $type "featured" }}
+  {{/* 对于特色图片，不使用原始尺寸，因为我们需要16:9比例 */}}
+  {{/* 跳过原始尺寸检查，只使用调整后的尺寸 */}}
+{{ else }}
+  {{/* 内容图片可以使用原始尺寸 */}}
+  {{ $originalAvifPath = printf "%s.avif" $srcBase }}
+  {{ $originalAvifResource = $page.Resources.GetMatch $originalAvifPath }}
+{{ end }}
 
 {{/* Determine the main src */}}
 {{ $mainSrc := "" }}
@@ -200,7 +226,7 @@
     decoding="async">
 {{ else }}
   <p style="color: red;">
-    <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }})
+    <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }}) [type: {{ $type }}]
     {{ if fileExists $dimensionsFilePath }}
       <br>Dimensions file: {{ $dimensionsFilePath }}
       {{ if $dimensionsFound }}
@@ -208,6 +234,18 @@
       {{ end }}
     {{ else }}
       <br>No dimensions file found at: {{ $dimensionsFilePath }}
+    {{ end }}
+    {{ if eq $type "featured" }}
+    <br><strong>Looking for 16:9 versions:</strong>
+    {{ range $sizes }}
+      {{ $path16x9 := printf "%s_%sw_16x9.avif" $srcBase . }}
+      <br>  - {{ $path16x9 }}: {{ if $page.Resources.GetMatch $path16x9 }}✅{{ else }}❌{{ end }}
+    {{ end }}
+    <br><strong>Looking for regular versions:</strong>
+    {{ range $sizes }}
+      {{ $pathRegular := printf "%s_%sw.avif" $srcBase . }}
+      <br>  - {{ $pathRegular }}: {{ if $page.Resources.GetMatch $pathRegular }}✅{{ else }}❌{{ end }}
+    {{ end }}
     {{ end }}
     <br>Available resources: {{ range $page.Resources }}{{ .Name }}, {{ end }}
   </p>

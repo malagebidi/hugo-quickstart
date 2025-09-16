@@ -132,8 +132,15 @@
 {{ $originalAvifResource := "" }}
 
 {{ if eq $type "featured" }}
-  {{/* 对于特色图片，不使用原始尺寸，因为我们需要16:9比例 */}}
-  {{/* 跳过原始尺寸检查，只使用调整后的尺寸 */}}
+  {{/* 对于特色图片，优先查找16:9版本的原始尺寸 */}}
+  {{ $originalAvifPath = printf "%s-16x9.avif" $srcBase }}
+  {{ $originalAvifResource = $page.Resources.GetMatch $originalAvifPath }}
+  
+  {{/* 如果16:9版本不存在，fallback到常规原始尺寸 */}}
+  {{ if not $originalAvifResource }}
+    {{ $originalAvifPath = printf "%s.avif" $srcBase }}
+    {{ $originalAvifResource = $page.Resources.GetMatch $originalAvifPath }}
+  {{ end }}
 {{ else }}
   {{/* 内容图片可以使用原始尺寸 */}}
   {{ $originalAvifPath = printf "%s.avif" $srcBase }}

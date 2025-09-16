@@ -47,7 +47,7 @@ body {
     background-color: var(--bg);
     color: var(--text);
     margin: 0;
-    padding: 0 1em;
+    padding: 0;
     line-height: 1.625
 }
 
@@ -181,6 +181,9 @@ td {
 }
 
 @media (max-width: 768px) {
+    .container {
+        padding: 0 1em
+    }
     main img {
         border-raduis: calc(var(--standard-border-radius) / 2)
     }

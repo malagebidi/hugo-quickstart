@@ -101,19 +101,11 @@ main {
 }
 
 .featured-image {
-    max-width: 768px;
-    width: 100%;
     margin-bottom: 2rem
 }
 
 .featured-image img {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-    object-fit: cover;
-    object-position: left center;
-    margin: 0
+    display: block
 }
 
 .post-title {

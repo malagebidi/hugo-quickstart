@@ -146,7 +146,7 @@ jobs:
                   "key": "'$SHORTPIXEL_KEY'",
                   "plugin_version": "GHA45",
                   "lossy": 2,
-                  "wait": 20,
+                  "wait": 30,
                   "urllist": ["'$base_url'"],
                   "paramlist": [{
                     "resize": 0,
@@ -214,7 +214,7 @@ jobs:
                     "key": "'$SHORTPIXEL_KEY'",
                     "plugin_version": "GHA45",
                     "lossy": 1,
-                    "wait": 20,
+                    "wait": 30,
                     "urllist": ["'$base_url'"],
                     "paramlist": [{
                       "resize": 4,
@@ -276,7 +276,7 @@ jobs:
                     "key": "'$SHORTPIXEL_KEY'",
                     "plugin_version": "GHA45",
                     "lossy": 2,
-                    "wait": 20,
+                    "wait": 30,
                     "urllist": ["'$base_url'"],
                     "paramlist": [{
                       "resize": 3,
@@ -337,7 +337,7 @@ jobs:
                       "key": "'$SHORTPIXEL_KEY'",
                       "plugin_version": "GHA45",
                       "lossy": 1,
-                      "wait": 20,
+                      "wait": 30,
                       "urllist": ["'$base_url'"],
                       "paramlist": [{
                         "resize": 4,

@@ -32,3 +32,5 @@ featured: "ff-cotw.avif"
 | Effect Quality          | 特效质量              | 低               | 高             |
 | Lighting Effects        | 特效灯光              | 关闭             | 打开           |
 | SSR                     | 屏幕空间反射          | -                | 高             |
+
+{{<image src="ff-cotw" alt="ff-cotw">}}

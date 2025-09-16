@@ -52,29 +52,65 @@ jobs:
                 # 获取原图尺寸
                 dimensions=$(identify -format "%wx%h" "$file" 2>/dev/null || echo "0x0")
                 width=$(echo "$dimensions" | cut -d'x' -f1)
+                height=$(echo "$dimensions" | cut -d'x' -f2)
                 
                 # 定义需要的尺寸
                 sizes="256 384 512 768 1024 1536 2048 3072 4096"
                 
-                # 检查各个尺寸的 AVIF（包括16:9版本）
+                # 标记是否需要处理这个文件
+                needs_processing=false
+                
+                # 检查原图AVIF
+                if [ "$width" -le 4096 ] && [ ! -f "${base_path}.avif" ]; then
+                  needs_processing=true
+                  echo "  Missing original AVIF for: $file"
+                fi
+                
+                # 检查原图16:9版本（如果需要）
+                if [ "$width" -le 4096 ] && [ ! -f "${base_path}-16x9.avif" ]; then
+                  # 判断原图是否为16:9比例（允许1%的误差）
+                  aspect_ratio=$(echo "scale=3; $width / $height" | bc -l 2>/dev/null || echo "1.777")
+                  target_ratio=$(echo "scale=3; 16 / 9" | bc -l)
+                  ratio_diff=$(echo "scale=3; if ($aspect_ratio > $target_ratio) $aspect_ratio - $target_ratio else $target_ratio - $aspect_ratio" | bc -l 2>/dev/null || echo "0")
+                  tolerance=$(echo "scale=3; $target_ratio * 0.01" | bc -l)
+                  
+                  # 如果不是16:9比例，需要生成16:9版本
+                  if (( $(echo "$ratio_diff > $tolerance" | bc -l 2>/dev/null || echo "1") )); then
+                    needs_processing=true
+                    echo "  Missing original 16:9 AVIF for: $file"
+                  fi
+                fi
+                
+                # 检查各个尺寸版本
                 for size in $sizes; do
                   if [ "$width" -gt "$size" ]; then
+                    # 检查常规尺寸版本
                     if [ ! -f "${base_path}_${size}w.avif" ]; then
-                      break
+                      needs_processing=true
+                      echo "  Missing ${size}w AVIF for: $file"
                     fi
-                    # 检查是否需要16:9版本
-                    aspect_ratio=$(echo "scale=3; $width / $(echo "$dimensions" | cut -d'x' -f2)" | bc -l 2>/dev/null || echo "1.777")
-                    target_ratio=$(echo "scale=3; 16 / 9" | bc -l)
-                    ratio_diff=$(echo "scale=3; if ($aspect_ratio > $target_ratio) $aspect_ratio - $target_ratio else $target_ratio - $aspect_ratio" | bc -l 2>/dev/null || echo "0")
-                    tolerance=$(echo "scale=3; $target_ratio * 0.01" | bc -l)
                     
-                    if (( $(echo "$ratio_diff > $tolerance" | bc -l) )) && [ ! -f "${base_path}_${size}w-16x9.avif" ]; then
-                      break
+                    # 检查16:9尺寸版本（如果需要）
+                    if [ ! -f "${base_path}_${size}w-16x9.avif" ]; then
+                      # 判断原图是否为16:9比例（允许1%的误差）
+                      aspect_ratio=$(echo "scale=3; $width / $height" | bc -l 2>/dev/null || echo "1.777")
+                      target_ratio=$(echo "scale=3; 16 / 9" | bc -l)
+                      ratio_diff=$(echo "scale=3; if ($aspect_ratio > $target_ratio) $aspect_ratio - $target_ratio else $target_ratio - $aspect_ratio" | bc -l 2>/dev/null || echo "0")
+                      tolerance=$(echo "scale=3; $target_ratio * 0.01" | bc -l)
+                      
+                      # 如果不是16:9比例，需要生成16:9版本
+                      if (( $(echo "$ratio_diff > $tolerance" | bc -l 2>/dev/null || echo "1") )); then
+                        needs_processing=true
+                        echo "  Missing ${size}w-16x9 AVIF for: $file"
+                      fi
                     fi
                   fi
                 done
                 
-                FILES_TO_PROCESS="$FILES_TO_PROCESS $file"
+                # 如果需要处理，添加到列表中
+                if [ "$needs_processing" = "true" ]; then
+                  FILES_TO_PROCESS="$FILES_TO_PROCESS $file"
+                fi
               fi
             done
           done

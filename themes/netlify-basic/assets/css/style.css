@@ -1,5 +1,7 @@
 :root {
   --sans-font: -apple-system, segoe ui, Roboto, noto sans, Arial, liberation sans, pingfang sc, microsoft yahei, noto sans sc, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
+  --featured-border-radius: 1rem;
+  --standard-border-radius: 0.5rem;
 
   /* Default (light) theme */
   --bg: #fff;
@@ -104,11 +106,16 @@ main img {
     display: block;
     margin-bottom: 1rem;
     max-width: 100%;
-    height: auto
+    height: auto;
+    border-raduis: var(--standard-border-radius)
 }
 
 .featured-image {
     margin-bottom: 2rem
+}
+
+.featured-image img {
+    border-radius: var(--featured-border-radius)
 }
 
 .post-title {

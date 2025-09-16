@@ -309,7 +309,51 @@ jobs:
                   # API调用逻辑（保持不变）
                   success=false
                   for attempt in $(seq 1 $MAX_ATTEMPTS); do
-                    # ... 现有的API调用代码 ...
+                    echo "      Attempt $attempt/$MAX_ATTEMPTS"
+                    
+                    JSON_PAYLOAD='{
+                      "key": "'$SHORTPIXEL_KEY'",
+                      "plugin_version": "GHA45",
+                      "lossy": 2,
+                      "wait": 30,
+                      "urllist": ["'$base_url'"],
+                      "paramlist": [{
+                        "resize": 3,
+                        "resize_width": '$target_width',
+                        "resize_height": 99999,
+                        "convertto": "avif"
+                      }]
+                    }'
+                    
+                    API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
+                    
+                    if [ -n "$API_RESPONSE" ] && echo "$API_RESPONSE" | jq empty 2>/dev/null; then
+                      status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
+                      avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
+                      
+                      if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
+                        output_file="${base_path}_${target_width}w.avif"
+                        if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
+                          echo "      ✅ Successfully generated: $(basename "$output_file")"
+                          success=true
+                          break
+                        else
+                          echo "      ❌ Failed to download from: $avif_url"
+                        fi
+                      else
+                        echo "      ❌ API failed with status: $status_code"
+                        if [ -n "$API_RESPONSE" ]; then
+                          echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"')"
+                        fi
+                      fi
+                    else
+                      echo "      ❌ Invalid API response"
+                    fi
+                    
+                    if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+                      echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."
+                      sleep $POLL_INTERVAL_SECONDS
+                    fi
                   done
                   
                   if [ "$success" != "true" ]; then

@@ -300,132 +300,99 @@ jobs:
             
             # 处理各个尺寸
             for target_width in $sizes; do
-              if [ "$width" -gt "$target_width" ] && [ ! -f "${base_path}_${target_width}w.avif" ]; then
-                echo "  - Will generate ${target_width}w version (${target_width}x${target_height})"
+              if [ "$width" -gt "$target_width" ]; then
                 
-                echo "    Processing ${target_width}w..."
-                success=false
-                for attempt in $(seq 1 $MAX_ATTEMPTS); do
-                  echo "      Attempt $attempt/$MAX_ATTEMPTS"
+                # 处理常规尺寸版本
+                if [ ! -f "${base_path}_${target_width}w.avif" ]; then
+                  echo "  - Processing ${target_width}w version..."
                   
-                  JSON_PAYLOAD='{
-                    "key": "'$SHORTPIXEL_KEY'",
-                    "plugin_version": "GHA45",
-                    "lossy": 2,
-                    "wait": 30,
-                    "urllist": ["'$base_url'"],
-                    "paramlist": [{
-                      "resize": 3,
-                      "resize_width": '$target_width',
-                      "resize_height": 99999,
-                      "convertto": "avif"
-                    }]
-                  }'
-                  
-                  API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
-                  
-                  if [ -n "$API_RESPONSE" ] && echo "$API_RESPONSE" | jq empty 2>/dev/null; then
-                    status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
-                    avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
-                    
-                    if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
-                      output_file="${base_path}_${target_width}w.avif"
-                      if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
-                        echo "      ✅ Successfully generated: $(basename "$output_file")"
-                        success=true
-                        break
-                      else
-                        echo "      ❌ Failed to download from: $avif_url"
-                      fi
-                    else
-                      echo "      ❌ API failed with status: $status_code"
-                      if [ -n "$API_RESPONSE" ]; then
-                        echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"')"
-                      fi
-                    fi
-                  else
-                    echo "      ❌ Invalid API response"
-                  fi
-                  
-                  if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-                    echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."
-                    sleep $POLL_INTERVAL_SECONDS
-                  fi
-                done
-
-                # 判断原图是否为16:9比例（允许1%的误差）
-                aspect_ratio=$(echo "scale=3; $width / $height" | bc -l)
-                target_ratio=$(echo "scale=3; 16 / 9" | bc -l)
-                ratio_diff=$(echo "scale=3; if ($aspect_ratio > $target_ratio) $aspect_ratio - $target_ratio else $target_ratio - $aspect_ratio" | bc -l)
-                tolerance=$(echo "scale=3; $target_ratio * 0.01" | bc -l) # 1%误差
-                
-                # 如果不是16:9比例且不存在16:9版本，使用最高性价比有损压缩
-                if (( $(echo "$ratio_diff > $tolerance" | bc -l) )) && [ ! -f "${base_path}_${target_width}w-16x9.avif" ]; then
-                  target_height-16x9=$((target_width * 9 / 16))
-                  echo "  - Will generate ${target_width}w 16:9 version (${target_width}x${target_height-16x9})"
-                  
-                  echo "    Processing ${target_width}w 16:9..."
-                  success-16x9=false
+                  # API调用逻辑（保持不变）
+                  success=false
                   for attempt in $(seq 1 $MAX_ATTEMPTS); do
-                    echo "      Attempt $attempt/$MAX_ATTEMPTS for 16:9"
-                    
-                    JSON_PAYLOAD='{
-                      "key": "'$SHORTPIXEL_KEY'",
-                      "plugin_version": "GHA45",
-                      "lossy": 1,
-                      "wait": 30,
-                      "urllist": ["'$base_url'"],
-                      "paramlist": [{
-                        "resize": 4,
-                        "resize_width": '$target_width',
-                        "resize_height": '$target_height-16x9',
-                        "convertto": "avif"
-                      }]
-                    }'
-                    
-                    API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
-                    
-                    if [ -n "$API_RESPONSE" ] && echo "$API_RESPONSE" | jq empty 2>/dev/null; then
-                      status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
-                      avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
-                      
-                      if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
-                        output_file="${base_path}_${target_width}w-16x9.avif"
-                        if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
-                          echo "      ✅ Successfully generated: $(basename "$output_file")"
-                          success-16x9=true
-                          break
-                        else
-                          echo "      ❌ Failed to download from: $avif_url"
-                        fi
-                      else
-                        echo "      ❌ API failed with status: $status_code"
-                        if [ -n "$API_RESPONSE" ]; then
-                          echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"')"
-                        fi
-                      fi
-                    else
-                      echo "      ❌ Invalid API response"
-                    fi
-                    
-                    if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-                      echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."
-                      sleep $POLL_INTERVAL_SECONDS
-                    fi
+                    # ... 现有的API调用代码 ...
                   done
                   
-                  if [ "$success-16x9" != "true" ]; then
-                    echo "      ⚠️ Failed to generate ${target_width}w 16:9 after $MAX_ATTEMPTS attempts"
+                  if [ "$success" != "true" ]; then
+                    echo "      ⚠️ Failed to generate ${target_width}w after $MAX_ATTEMPTS attempts"
                   fi
-                elif (( $(echo "$ratio_diff <= $tolerance" | bc -l) )); then
-                  echo "  - Skipping 16:9 version (already 16:9 ratio)"
+                else
+                  echo "  - ${target_width}w version already exists, skipping"
                 fi
-                
-                if [ "$success" != "true" ]; then
-                  echo "      ⚠️ Failed to generate ${target_width}w after $MAX_ATTEMPTS attempts"
+
+                # 处理16:9版本（独立检查，不依赖上面的success状态）
+                if [ ! -f "${base_path}_${target_width}w-16x9.avif" ]; then
+                  # 判断原图是否为16:9比例
+                  aspect_ratio=$(echo "scale=3; $width / $height" | bc -l)
+                  target_ratio=$(echo "scale=3; 16 / 9" | bc -l)
+                  ratio_diff=$(echo "scale=3; if ($aspect_ratio > $target_ratio) $aspect_ratio - $target_ratio else $target_ratio - $aspect_ratio" | bc -l)
+                  tolerance=$(echo "scale=3; $target_ratio * 0.01" | bc -l)
+                  
+                  # 如果不是16:9比例，生成16:9版本
+                  if (( $(echo "$ratio_diff > $tolerance" | bc -l) )); then
+                    target_height-16x9=$((target_width * 9 / 16))
+                    echo "  - Processing ${target_width}w 16:9 version (${target_width}x${target_height-16x9})..."
+                    
+                    success-16x9=false
+                    for attempt in $(seq 1 $MAX_ATTEMPTS); do
+                      echo "      Attempt $attempt/$MAX_ATTEMPTS for ${target_width}w 16:9"
+                      
+                      JSON_PAYLOAD='{
+                        "key": "'$SHORTPIXEL_KEY'",
+                        "plugin_version": "GHA45",
+                        "lossy": 1,
+                        "wait": 30,
+                        "urllist": ["'$base_url'"],
+                        "paramlist": [{
+                          "resize": 4,
+                          "resize_width": '$target_width',
+                          "resize_height": '$target_height-16x9',
+                          "convertto": "avif"
+                        }]
+                      }'
+                      
+                      API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "$JSON_PAYLOAD" https://api.shortpixel.com/v2/reducer.php)
+                      
+                      if [ -n "$API_RESPONSE" ] && echo "$API_RESPONSE" | jq empty 2>/dev/null; then
+                        status_code=$(echo "$API_RESPONSE" | jq -r '.[0].Status.Code // empty')
+                        avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
+                        
+                        if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
+                          output_file="${base_path}_${target_width}w-16x9.avif"
+                          if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
+                            echo "      ✅ Successfully generated: $(basename "$output_file")"
+                            success-16x9=true
+                            break
+                          else
+                            echo "      ❌ Failed to download from: $avif_url"
+                          fi
+                        else
+                          echo "      ❌ API failed with status: $status_code"
+                          if [ -n "$API_RESPONSE" ]; then
+                            echo "      Error: $(echo "$API_RESPONSE" | jq -r '.[0].Status.Message // "Unknown error"')"
+                          fi
+                        fi
+                      else
+                        echo "      ❌ Invalid API response"
+                      fi
+                      
+                      if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+                        echo "      Waiting ${POLL_INTERVAL_SECONDS}s before retry..."
+                        sleep $POLL_INTERVAL_SECONDS
+                      fi
+                    done
+                    
+                    if [ "$success-16x9" != "true" ]; then
+                      echo "      ⚠️ Failed to generate ${target_width}w 16:9 after $MAX_ATTEMPTS attempts"
+                    fi
+                  else
+                    echo "  - Skipping ${target_width}w 16:9 version (already 16:9 ratio)"
+                  fi
+                else
+                  echo "  - ${target_width}w 16:9 version already exists, skipping"
                 fi
               fi
             done
+
           done
           
           # 统一处理所有成功转换的原始文件

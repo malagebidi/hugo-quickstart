@@ -68,7 +68,7 @@ jobs:
                     ratio_diff=$(echo "scale=3; if ($aspect_ratio > $target_ratio) $aspect_ratio - $target_ratio else $target_ratio - $aspect_ratio" | bc -l 2>/dev/null || echo "0")
                     tolerance=$(echo "scale=3; $target_ratio * 0.01" | bc -l)
                     
-                    if (( $(echo "$ratio_diff > $tolerance" | bc -l) )) && [ ! -f "${base_path}_${size}w_16x9.avif" ]; then
+                    if (( $(echo "$ratio_diff > $tolerance" | bc -l) )) && [ ! -f "${base_path}_${size}w-16x9.avif" ]; then
                       break
                     fi
                   fi
@@ -193,7 +193,7 @@ jobs:
             fi
 
             # 处理原图的16:9版本（如果需要且不存在）
-            if [ "$width" -le 4096 ] && [ ! -f "${base_path}_16x9.avif" ]; then
+            if [ "$width" -le 4096 ] && [ ! -f "${base_path}-16x9.avif" ]; then
               # 判断原图是否为16:9比例（允许1%的误差）
               aspect_ratio=$(echo "scale=3; $width / $height" | bc -l)
               target_ratio=$(echo "scale=3; 16 / 9" | bc -l)
@@ -202,8 +202,8 @@ jobs:
               
               # 如果不是16:9比例，生成16:9版本
               if (( $(echo "$ratio_diff > $tolerance" | bc -l) )); then
-                target_height_16x9=$((width * 9 / 16))
-                echo "  - Will generate original 16:9 version (${width}x${target_height_16x9})"
+                target_height-16x9=$((width * 9 / 16))
+                echo "  - Will generate original 16:9 version (${width}x${target_height-16x9})"
                 
                 echo "    Processing original 16:9..."
                 success=false
@@ -219,7 +219,7 @@ jobs:
                     "paramlist": [{
                       "resize": 4,
                       "resize_width": '$width',
-                      "resize_height": '$target_height_16x9',
+                      "resize_height": '$target_height-16x9',
                       "convertto": "avif"
                     }]
                   }'
@@ -231,8 +231,8 @@ jobs:
                     avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
                     
                     if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
-                      if curl -fsS --retry 2 -o "${base_path}_16x9.avif" "$avif_url"; then
-                        echo "      ✅ Successfully generated: $(basename "${base_path}_16x9.avif")"
+                      if curl -fsS --retry 2 -o "${base_path}-16x9.avif" "$avif_url"; then
+                        echo "      ✅ Successfully generated: $(basename "${base_path}-16x9.avif")"
                         success=true
                         break
                       else
@@ -324,12 +324,12 @@ jobs:
                 tolerance=$(echo "scale=3; $target_ratio * 0.01" | bc -l) # 1%误差
                 
                 # 如果不是16:9比例且不存在16:9版本，使用最高性价比有损压缩
-                if (( $(echo "$ratio_diff > $tolerance" | bc -l) )) && [ ! -f "${base_path}_${target_width}w_16x9.avif" ]; then
-                  target_height_16x9=$((target_width * 9 / 16))
-                  echo "  - Will generate ${target_width}w 16:9 version (${target_width}x${target_height_16x9})"
+                if (( $(echo "$ratio_diff > $tolerance" | bc -l) )) && [ ! -f "${base_path}_${target_width}w-16x9.avif" ]; then
+                  target_height-16x9=$((target_width * 9 / 16))
+                  echo "  - Will generate ${target_width}w 16:9 version (${target_width}x${target_height-16x9})"
                   
                   echo "    Processing ${target_width}w 16:9..."
-                  success_16x9=false
+                  success-16x9=false
                   for attempt in $(seq 1 $MAX_ATTEMPTS); do
                     echo "      Attempt $attempt/$MAX_ATTEMPTS for 16:9"
                     
@@ -342,7 +342,7 @@ jobs:
                       "paramlist": [{
                         "resize": 4,
                         "resize_width": '$target_width',
-                        "resize_height": '$target_height_16x9',
+                        "resize_height": '$target_height-16x9',
                         "convertto": "avif"
                       }]
                     }'
@@ -354,10 +354,10 @@ jobs:
                       avif_url=$(echo "$API_RESPONSE" | jq -r '.[0].AVIFLossyURL // empty')
                       
                       if [ "$status_code" = "2" ] && [ -n "$avif_url" ] && [ "$avif_url" != "null" ] && [ "$avif_url" != "NA" ]; then
-                        output_file="${base_path}_${target_width}w_16x9.avif"
+                        output_file="${base_path}_${target_width}w-16x9.avif"
                         if curl -fsS --retry 2 -o "$output_file" "$avif_url"; then
                           echo "      ✅ Successfully generated: $(basename "$output_file")"
-                          success_16x9=true
+                          success-16x9=true
                           break
                         else
                           echo "      ❌ Failed to download from: $avif_url"
@@ -378,7 +378,7 @@ jobs:
                     fi
                   done
                   
-                  if [ "$success_16x9" != "true" ]; then
+                  if [ "$success-16x9" != "true" ]; then
                     echo "      ⚠️ Failed to generate ${target_width}w 16:9 after $MAX_ATTEMPTS attempts"
                   fi
                 elif (( $(echo "$ratio_diff <= $tolerance" | bc -l) )); then

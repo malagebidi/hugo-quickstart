@@ -81,7 +81,7 @@ h3 {
     display: flex;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 4em 0;
+    padding: 4em 1em;
     gap: 8em
 }
 
@@ -181,9 +181,6 @@ td {
 }
 
 @media (max-width: 768px) {
-    .container {
-        padding: 0 1em
-    }
     main img {
         border-raduis: calc(var(--standard-border-radius) / 2)
     }

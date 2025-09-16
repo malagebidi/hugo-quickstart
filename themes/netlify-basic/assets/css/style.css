@@ -165,7 +165,7 @@ td {
     text-align: left
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1312px) {
     .container {
         flex-direction: column;
         align-items: center;
@@ -180,7 +180,7 @@ td {
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 800px) {
     main img {
         border-raduis: calc(var(--standard-border-radius) / 2)
     }

@@ -106,7 +106,7 @@
   
   {{/* 如果是特色图片，优先查找16:9版本 */}}
   {{ if eq $type "featured" }}
-    {{ $sizedPath = printf "%s_%sw_16x9.avif" $srcBase . }}
+    {{ $sizedPath = printf "%s_%sw-16x9.avif" $srcBase . }}
     {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
     
     {{/* 如果16:9版本不存在，fallback到常规版本 */}}
@@ -233,7 +233,7 @@
     {{ if eq $type "featured" }}
     <br><strong>Looking for 16:9 versions:</strong>
     {{ range $sizes }}
-      {{ $path16x9 := printf "%s_%sw_16x9.avif" $srcBase . }}
+      {{ $path16x9 := printf "%s_%sw-16x9.avif" $srcBase . }}
       <br>  - {{ $path16x9 }}: {{ if $page.Resources.GetMatch $path16x9 }}✅{{ else }}❌{{ end }}
     {{ end }}
     <br><strong>Looking for regular versions:</strong>

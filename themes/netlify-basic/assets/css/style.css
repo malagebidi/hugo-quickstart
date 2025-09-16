@@ -1,5 +1,7 @@
 :root {
   --sans-font: -apple-system, segoe ui, Roboto, noto sans, Arial, liberation sans, pingfang sc, microsoft yahei, noto sans sc, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
+  --breakpoint-container: calc(1280px + 2rem);
+  --breakpoint-main: calc(768px + 2rem);
   --featured-border-radius: 1rem;
   --standard-border-radius: 0.5rem;
 
@@ -165,7 +167,7 @@ td {
     text-align: left
 }
 
-@media (max-width: 1312px) {
+@media (max-width: var(--breakpoint-container)) {
     .container {
         flex-direction: column;
         align-items: center;
@@ -180,7 +182,7 @@ td {
     }
 }
 
-@media (max-width: 800px) {
+@media (max-width: var(--breakpoint-main)) {
     main img {
         border-raduis: calc(var(--standard-border-radius) / 2)
     }

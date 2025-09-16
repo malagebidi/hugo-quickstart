@@ -1,7 +1,5 @@
 :root {
   --sans-font: -apple-system, segoe ui, Roboto, noto sans, Arial, liberation sans, pingfang sc, microsoft yahei, noto sans sc, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
-  --breakpoint-container: calc(1280px + 2rem);
-  --breakpoint-main: calc(768px + 2rem);
   --featured-border-radius: 1rem;
   --standard-border-radius: 0.5rem;
 
@@ -109,7 +107,7 @@ main img {
     margin-bottom: 1rem;
     max-width: 100%;
     height: auto;
-    border-raduis: var(--standard-border-radius)
+    border-radius: var(--standard-border-radius)
 }
 
 .featured-image {
@@ -167,7 +165,7 @@ td {
     text-align: left
 }
 
-@media (max-width: var(--breakpoint-container)) {
+@media (max-width: calc(1280px + 2rem)) {
     .container {
         flex-direction: column;
         align-items: center;
@@ -182,9 +180,9 @@ td {
     }
 }
 
-@media (max-width: var(--breakpoint-main)) {
+@media (max-width: calc(768px + 2rem)) {
     main img {
-        border-raduis: calc(var(--standard-border-radius) / 2)
+        border-radius: calc(var(--standard-border-radius) / 2)
     }
     
     .featured-image img {

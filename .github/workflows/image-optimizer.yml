@@ -238,8 +238,8 @@ jobs:
               
               # 如果不是16:9比例，生成16:9版本
               if (( $(echo "$ratio_diff > $tolerance" | bc -l) )); then
-                target_height-16x9=$((width * 9 / 16))
-                echo "  - Will generate original 16:9 version (${width}x${target_height-16x9})"
+                target_height16x9=$((width * 9 / 16))
+                echo "  - Will generate original 16:9 version (${width}x${target_height16x9})"
                 
                 echo "    Processing original 16:9..."
                 success=false
@@ -255,7 +255,7 @@ jobs:
                     "paramlist": [{
                       "resize": 4,
                       "resize_width": '$width',
-                      "resize_height": '$target_height-16x9',
+                      "resize_height": '$target_height16x9',
                       "convertto": "avif"
                     }]
                   }'
@@ -329,8 +329,8 @@ jobs:
                   
                   # 如果不是16:9比例，生成16:9版本
                   if (( $(echo "$ratio_diff > $tolerance" | bc -l) )); then
-                    target_height-16x9=$((target_width * 9 / 16))
-                    echo "  - Processing ${target_width}w 16:9 version (${target_width}x${target_height-16x9})..."
+                    target_height16x9=$((target_width * 9 / 16))
+                    echo "  - Processing ${target_width}w 16:9 version (${target_width}x${target_height16x9})..."
                     
                     success-16x9=false
                     for attempt in $(seq 1 $MAX_ATTEMPTS); do
@@ -345,7 +345,7 @@ jobs:
                         "paramlist": [{
                           "resize": 4,
                           "resize_width": '$target_width',
-                          "resize_height": '$target_height-16x9',
+                          "resize_height": '$target_height16x9',
                           "convertto": "avif"
                         }]
                       }'

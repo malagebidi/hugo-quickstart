@@ -132,7 +132,7 @@ jobs:
             # 定义需要生成的尺寸
             sizes="256 384 512 768 1024 1536 2048 3072 4096"
             
-            # 检查原图处理，使用最高性价比有损压缩（只有宽度<=4096且不存在对应AVIF的才处理）
+            # 检查原图处理（只有宽度<=4096且不存在对应AVIF的才处理）
             if [ "$width" -le 4096 ] && [ ! -f "${base_path}.avif" ]; then
               echo "  - Will generate original size AVIF (${width}x${height})"
               
@@ -145,7 +145,7 @@ jobs:
                 JSON_PAYLOAD='{
                   "key": "'$SHORTPIXEL_KEY'",
                   "plugin_version": "GHA45",
-                  "lossy": 1,
+                  "lossy": 2,
                   "wait": 20,
                   "urllist": ["'$base_url'"],
                   "paramlist": [{
@@ -192,7 +192,7 @@ jobs:
               echo "  - Skipping original size AVIF (${width}x${height} > 4096w limit)"
             fi
             
-            # 处理各个尺寸，使用最高性价比有损压缩
+            # 处理各个尺寸
             for target_width in $sizes; do
               if [ "$width" -gt "$target_width" ] && [ ! -f "${base_path}_${target_width}w.avif" ]; then
                 echo "  - Will generate ${target_width}w version (${target_width}x${target_height})"
@@ -205,7 +205,7 @@ jobs:
                   JSON_PAYLOAD='{
                     "key": "'$SHORTPIXEL_KEY'",
                     "plugin_version": "GHA45",
-                    "lossy": 1,
+                    "lossy": 2,
                     "wait": 20,
                     "urllist": ["'$base_url'"],
                     "paramlist": [{
@@ -253,7 +253,7 @@ jobs:
                 ratio_diff=$(echo "scale=3; if ($aspect_ratio > $target_ratio) $aspect_ratio - $target_ratio else $target_ratio - $aspect_ratio" | bc -l)
                 tolerance=$(echo "scale=3; $target_ratio * 0.01" | bc -l) # 1%误差
                 
-                # 如果不是16:9比例且不存在16:9版本，则生成
+                # 如果不是16:9比例且不存在16:9版本，使用最高性价比有损压缩
                 if (( $(echo "$ratio_diff > $tolerance" | bc -l) )) && [ ! -f "${base_path}_${target_width}w_16x9.avif" ]; then
                   target_height_16x9=$((target_width * 9 / 16))
                   echo "  - Will generate ${target_width}w 16:9 version (${target_width}x${target_height_16x9})"

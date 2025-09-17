@@ -18,10 +18,33 @@ jobs:
        id-token: write
        contents: read
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4 # 建议升级到 v4
         with:
           submodules: true
           lfs: false
+
+      # ------------------- 自定义构建流程开始 -------------------
+      
+      # 步骤 1: 安装你需要的 Go 版本 (绕过 Oryx 的限制)
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25' # 指定一个 Oryx 不支持的、但你需要的现代 Go 版本
+
+      # 步骤 2: 安装你指定的 Hugo 版本
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.149.0' # 我们从你原来的 env 中获取这个版本号
+          extended: true # 建议开启，以支持 Sass/SCSS
+
+      # 步骤 3: 运行 Hugo 构建命令，生成静态文件到 public 目录
+      - name: Build with Hugo
+        run: hugo --gc --minify # 这是你原来的 app_build_command
+        
+      # ------------------- 自定义构建流程结束 -------------------
+
+      # 你的 OIDC 认证步骤保持不变，它们需要在部署步骤之前运行
       - name: Install OIDC Client from Core Package
         run: npm install @actions/core@1.6.0 @actions/http-client
       - name: Get Id Token
@@ -32,22 +55,21 @@ jobs:
                const coredemo = require('@actions/core')
                return await coredemo.getIDToken()
            result-encoding: string
-      - name: Build And Deploy
+
+      # 最后一步：仅上传已经构建好的内容到 Azure
+      - name: Deploy to Azure Static Web Apps
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_BLUE_BEACH_0ADFD8600 }}
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_BLUE_BEACH_0ADFD8600 }} # 虽然有 OIDC，但保留也无妨
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "public" # Built app content directory - optional
           github_id_token: ${{ steps.idtoken.outputs.result }}
-          app_build_command: "hugo --gc --minify"
-          ###### End of Repository/Build Configurations ######
-        env:
-          HUGO_VERSION: "0.149.0"
+          
+          # --- 关键修改 ---
+          # 告诉 Azure 不要再尝试构建了
+          skip_app_build: true
+          # 直接告诉 Azure 构建好的文件在哪里
+          app_location: "public" 
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -59,9 +81,3 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           action: "close"
-
-
-
-
-
-

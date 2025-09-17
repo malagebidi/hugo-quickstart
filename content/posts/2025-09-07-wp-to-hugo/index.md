@@ -184,6 +184,7 @@ The killer feature of `markdown-it` is very effective support of
 > Classic markup: :wink: :cry: :laughing: :yum:
 >
 > Shortcuts (emoticons): :-) :-( 8-) ;)
+> -- <cite>Benjamin Franklin</cite>
 
 see [how to change output](https://github.com/markdown-it/markdown-it-emoji#change-output) with twemoji.
 

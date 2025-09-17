@@ -249,7 +249,7 @@ jobs:
                   JSON_PAYLOAD='{
                     "key": "'$SHORTPIXEL_KEY'",
                     "plugin_version": "GHA45",
-                    "lossy": 1,
+                    "lossy": 2,
                     "wait": 30,
                     "urllist": ["'$base_url'"],
                     "paramlist": [{
@@ -383,7 +383,7 @@ jobs:
                       JSON_PAYLOAD='{
                         "key": "'$SHORTPIXEL_KEY'",
                         "plugin_version": "GHA45",
-                        "lossy": 1,
+                        "lossy": 2,
                         "wait": 30,
                         "urllist": ["'$base_url'"],
                         "paramlist": [{

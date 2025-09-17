@@ -1,4 +1,4 @@
-name: '🤖 Optimize Bundle Images with ShortPixel'
+name: 'Optimize Bundle Images with ShortPixel'
 on:
   push:
     branches:

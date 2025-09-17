@@ -1,0 +1,11 @@
+{{ define "main" }}
+<aside>
+  <a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a>
+</aside>
+{{ $pages := (where .Site.RegularPages "Type" "in" .Site.Params.mainSections).ByDate.Reverse }}
+{{ range $pages }}
+  {{ .Date.Format "2006/01/02" }} <a href="{{ .RelPermalink }}">
+    {{ .Title }}
+  </a><br>
+{{ end }}
+{{ end }}

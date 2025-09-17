@@ -1,0 +1,24 @@
+{{ define "main" }}
+<aside>
+  <h1><a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></h1>
+</aside>
+<main>
+  {{ with .Params.featured }}
+    <div class="featured-image">
+      {{ partial "image.html" (dict 
+        "src" . 
+        "alt" $.Title 
+        "Page" $.Page
+        "lazy" "false"
+        "type" "featured"
+      ) }}
+    </div>
+  {{ end }}
+  <h2 class="post-title">{{ .Title }}</h2>
+  <time class="post-date" datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}" itemprop="datePublished">{{ .Date.Format "2006-01-02" }}</time>
+  <div class="post-content">{{ .Content }}</div>
+</main>
+{{ end }}
+
+
+

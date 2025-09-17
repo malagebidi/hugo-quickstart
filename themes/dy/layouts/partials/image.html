@@ -1,0 +1,254 @@
+{{/* 初始化所有变量 */}}
+{{ $src := "" }}
+{{ $alt := "" }}
+{{ $lazy := "true" }}
+{{ $page := "" }}
+{{ $type := "content" }} {{/* 默认为内容图片 */}}
+
+{{/* 检测调用方式并设置变量 */}}
+{{ if reflect.IsMap . }}
+  {{/* 作为 partial 调用时，. 是一个字典 */}}
+  {{ $src = index . "src" | default "" }}
+  {{ $alt = index . "alt" | default $src }}
+  {{ $lazy = index . "lazy" | default "true" }}
+  {{ $page = index . "Page" }}
+  {{ $type = index . "type" | default "content" }} {{/* partial 调用时可以指定 type */}}
+{{ else }}
+  {{/* 作为 shortcode 调用时，. 是 shortcode 上下文 */}}
+  {{ $src = .Get "src" }}
+  {{ $alt = .Get "alt" | default $src }}
+  {{ $lazy = .Get "lazy" | default "true" }}
+  {{ $page = .Page }}
+  {{/* shortcode 调用时默认就是 content，不需要额外参数 */}}
+  {{ $type = "content" }}
+{{ end }}
+
+{{/* Fallback: Manual string processing */}}
+{{ $srcBase := "" }}
+{{ if $src }}
+  {{ $filename := path.Base $src }}
+  
+  {{/* 使用 split 和 delimit 方法 */}}
+  {{ $parts := split $filename "." }}
+  {{ if gt (len $parts) 1 }}
+    {{ $srcBase = delimit (first (sub (len $parts) 1) $parts) "." }}
+  {{ else }}
+    {{ $srcBase = $filename }}
+  {{ end }}
+{{ end }}
+
+{{/* Try to get dimensions from hidden dimensions file */}}
+{{ $width := "" }}
+{{ $height := "" }}
+{{ $dimensionsFound := false }}
+
+{{/* Get the directory where this post/page is located */}}
+{{ $pagePath := "" }}
+{{ with $page.File }}
+  {{ $pagePath = .Dir }}
+{{ else }}
+  {{/* Fallback for pages without File */}}
+  {{ $pagePath = path.Dir $page.RelPermalink }}
+  {{ if eq $pagePath "." }}
+    {{ $pagePath = "" }}
+  {{ end }}
+{{ end }}
+
+{{ $dimensionsFilePath := printf "content/%s.image_dimensions.yaml" $pagePath }}
+
+{{/* Try to read the dimensions file */}}
+{{ if fileExists $dimensionsFilePath }}
+  {{ $dimensionsContent := readFile $dimensionsFilePath }}
+  {{ if $dimensionsContent }}
+    {{ $dimensionsData := $dimensionsContent | transform.Unmarshal }}
+    {{ with (index $dimensionsData $srcBase) }}
+      {{/* Parse the "widthxheight" format */}}
+      {{ $dimensionStr := . }}
+      {{ $parts := split $dimensionStr "x" }}
+      {{ if eq (len $parts) 2 }}
+        {{ $width = index $parts 0 }}
+        {{ $height = index $parts 1 }}
+        {{ $dimensionsFound = true }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{/* 根据图片类型调整尺寸 */}}
+{{ if eq $type "featured" }}
+  {{/* 特色图片：强制16:9比例，最大768px */}}
+  {{ $width = "768" }}
+  {{ $height = "432" }}
+  {{ $dimensionsFound = true }}
+{{ else if eq $type "content" }}
+  {{/* 文章内图片：保持原比例但限制最大宽度768px */}}
+  {{ if $dimensionsFound }}
+    {{ $originalWidth := int $width }}
+    {{ $originalHeight := int $height }}
+    {{ if gt $originalWidth 768 }}
+      {{ $ratio := div (float $originalHeight) (float $originalWidth) }}
+      {{ $width = "768" }}
+      {{ $height = printf "%.0f" (mul 768.0 $ratio) }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{/* Build srcset for different sizes - 限制最大768px */}}
+{{ $srcset := slice }}
+{{ $sizes := slice "256" "384" "512" "768" "1024" "1536" "2048" "3072" "4096" }}
+{{ $availableSizes := slice }}
+{{ $sizeToUrl := dict }}
+
+{{/* Check what AVIF sizes are available */}}
+{{ range $sizes }}
+  {{ $sizedPath := "" }}
+  {{ $sizedResource := "" }}
+  
+  {{/* 如果是特色图片，优先查找16:9版本 */}}
+  {{ if eq $type "featured" }}
+    {{ $sizedPath = printf "%s_%sw-16x9.avif" $srcBase . }}
+    {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
+    
+    {{/* 如果16:9版本不存在，fallback到常规版本 */}}
+    {{ if not $sizedResource }}
+      {{ $sizedPath = printf "%s_%sw.avif" $srcBase . }}
+      {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
+    {{ end }}
+  {{ else }}
+    {{/* 内容图片使用常规版本 */}}
+    {{ $sizedPath = printf "%s_%sw.avif" $srcBase . }}
+    {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
+  {{ end }}
+  
+  {{ if $sizedResource }}
+    {{ $srcset = $srcset | append (printf "%s %sw" $sizedResource.RelPermalink .) }}
+    {{ $availableSizes = $availableSizes | append . }}
+    {{ $sizeToUrl = merge $sizeToUrl (dict . $sizedResource.RelPermalink) }}
+  {{ end }}
+{{ end }}
+
+{{/* Check if original size AVIF exists */}}
+{{ $originalAvifPath := "" }}
+{{ $originalAvifResource := "" }}
+
+{{ if eq $type "featured" }}
+  {{/* 对于特色图片，优先查找16:9版本的原始尺寸 */}}
+  {{ $originalAvifPath = printf "%s-16x9.avif" $srcBase }}
+  {{ $originalAvifResource = $page.Resources.GetMatch $originalAvifPath }}
+  
+  {{/* 如果16:9版本不存在，fallback到常规原始尺寸 */}}
+  {{ if not $originalAvifResource }}
+    {{ $originalAvifPath = printf "%s.avif" $srcBase }}
+    {{ $originalAvifResource = $page.Resources.GetMatch $originalAvifPath }}
+  {{ end }}
+{{ else }}
+  {{/* 内容图片可以使用原始尺寸 */}}
+  {{ $originalAvifPath = printf "%s.avif" $srcBase }}
+  {{ $originalAvifResource = $page.Resources.GetMatch $originalAvifPath }}
+{{ end }}
+
+{{/* Determine the main src */}}
+{{ $mainSrc := "" }}
+
+{{ if $originalAvifResource }}
+  {{ $mainSrc = $originalAvifResource.RelPermalink }}
+  {{ if $dimensionsFound }}
+    {{/* Only add original size if it's not already in the list and not larger than 768px */}}
+    {{ $originalWidthInt := int $width }}
+    {{ if le $originalWidthInt 768 }}
+      {{ $widthInList := false }}
+      {{ range $availableSizes }}
+        {{ if eq . $width }}
+          {{ $widthInList = true }}
+          {{ break }}
+        {{ end }}
+      {{ end }}
+      {{ if not $widthInList }}
+        {{ $srcset = $srcset | append (printf "%s %sw" $originalAvifResource.RelPermalink $width) }}
+        {{ $availableSizes = $availableSizes | append $width }}
+        {{ $sizeToUrl = merge $sizeToUrl (dict $width $originalAvifResource.RelPermalink) }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ else if gt (len $availableSizes) 0 }}
+  {{/* Use largest available size as main src */}}
+  {{ $sortedAvailable := sort $availableSizes }}
+  {{ $largestAvailableSize := index (last 1 $sortedAvailable) 0 }}
+  {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
+{{ end }}
+
+{{/* 生成适配768px限制的sizes属性 */}}
+{{ $sizesAttr := "" }}
+{{ if gt (len $availableSizes) 0 }}
+  {{ $sortedSizes := sort $availableSizes }}
+  {{ $sizeRules := slice }}
+  
+  {{ range $i, $size := $sortedSizes }}
+    {{ $sizeInt := int $size }}
+    {{ if lt $i (sub (len $sortedSizes) 1) }}
+      {{ if le $sizeInt 768 }}
+        {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+  
+  {{/* Add the default size, but cap at 768px */}}
+  {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
+  {{ $largestInt := int $largestAvailable }}
+  {{ if le $largestInt 768 }}
+    {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
+  {{ else }}
+    {{ $sizeRules = $sizeRules | append "768px" }}
+  {{ end }}
+  
+  {{ $sizesAttr = delimit $sizeRules ", " }}
+{{ else }}
+  {{/* 默认sizes，限制768px */}}
+  {{ $sizesAttr = "(max-width: 256px) 256px, (max-width: 384px) 384px, (max-width: 512px) 512px, (max-width: 768px) 768px, 768px" }}
+{{ end }}
+
+{{/* If we have AVIF files, render the optimized image */}}
+{{ if $mainSrc }}
+  <img 
+    src="{{ $mainSrc }}" 
+    {{ if gt (len $srcset) 0 }}
+    srcset="{{ delimit $srcset ", " }}"
+    {{ if $sizesAttr }}
+    sizes="{{ $sizesAttr }}"
+    {{ end }}
+    {{ end }}
+    alt="{{ $alt }}" 
+    {{ if $dimensionsFound }}
+    width="{{ $width }}" 
+    height="{{ $height }}"
+    {{ end }}
+    {{ if eq $lazy "true" }}
+    loading="lazy"
+    {{ end }}
+    decoding="async">
+{{ else }}
+  <p style="color: red;">
+    <strong>Image Error:</strong> No AVIF found for '{{ $src }}' (base: {{ $srcBase }}) [type: {{ $type }}]
+    {{ if fileExists $dimensionsFilePath }}
+      <br>Dimensions file: {{ $dimensionsFilePath }}
+      {{ if $dimensionsFound }}
+      <br>Dimensions: {{ $width }}x{{ $height }}
+      {{ end }}
+    {{ else }}
+      <br>No dimensions file found at: {{ $dimensionsFilePath }}
+    {{ end }}
+    {{ if eq $type "featured" }}
+    <br><strong>Looking for 16:9 versions:</strong>
+    {{ range $sizes }}
+      {{ $path16x9 := printf "%s_%sw-16x9.avif" $srcBase . }}
+      <br>  - {{ $path16x9 }}: {{ if $page.Resources.GetMatch $path16x9 }}✅{{ else }}❌{{ end }}
+    {{ end }}
+    <br><strong>Looking for regular versions:</strong>
+    {{ range $sizes }}
+      {{ $pathRegular := printf "%s_%sw.avif" $srcBase . }}
+      <br>  - {{ $pathRegular }}: {{ if $page.Resources.GetMatch $pathRegular }}✅{{ else }}❌{{ end }}
+    {{ end }}
+    {{ end }}
+    <br>Available resources: {{ range $page.Resources }}{{ .Name }}, {{ end }}
+  </p>
+{{ end }}

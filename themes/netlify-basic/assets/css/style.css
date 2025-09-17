@@ -8,9 +8,10 @@
   /* Default (light) theme */
   --bg: #fff;
   --text: #212121;
-  --accent: #0d47a1;
   --text-light: #585858;
   --border: #898EA4;
+  --accent: #0d47a1;
+  --code: #d81b60;
 }
 
 /* Dark theme */
@@ -19,9 +20,9 @@
     color-scheme: dark;
     --bg: #212121;
     --text: #dcdcdc;
-    --accent: #ffb300;
     --text-light: #ababab;
-    
+    --accent: #ffb300;
+    --code: #f06292;
   }
   /* Add a bit of transparency so light media isn't so glaring in dark mode */
   img,
@@ -81,6 +82,15 @@ h1,
 h2,
 h3 {
     margin-top: 0
+}
+
+code,
+pre,
+pre span,
+kbd,
+samp {
+    font-family: var(--mono-font);
+    color: var(--code);
 }
 
 .container {

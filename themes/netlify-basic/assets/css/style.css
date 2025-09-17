@@ -222,14 +222,7 @@ td {
 
 @media (max-width: calc(768px + 2rem)) {
     :root {
-        --standard-border-radius: calc(var(--standard-border-radius) / 2)
+        --featured-border-radius: 0.5rem;
+        --standard-border-radius: 0.25rem;
     }
-    main img {
-        border-radius: calc(var(--standard-border-radius) / 2)
-    }
-    
-    .featured-image img {
-        border-radius: calc(var(--featured-border-radius) / 2)
-    }
-    
 }

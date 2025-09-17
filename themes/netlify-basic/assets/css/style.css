@@ -86,6 +86,13 @@ h3 {
     margin-top: 0
 }
 
+aside, details, pre, progress {
+  background-color: var(--accent-bg);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--standard-border-radius);
+  margin-bottom: 1rem;
+}
+
 code,
 pre,
 pre span,
@@ -100,11 +107,11 @@ kbd {
   border: 1px solid var(--preformatted);
   border-bottom: 3px solid var(--preformatted);
   border-radius: var(--standard-border-radius);
-  padding: 0.1rem 0.4rem;
+  padding: 0.25rem 0.5rem;
 }
 
 pre {
-  padding: 1rem 1.4rem;
+  padding: 1rem 2rem;
   max-width: 100%;
   overflow: auto;
   color: var(--preformatted);

@@ -226,9 +226,18 @@ table {
 th,
 td {
     padding: 0.5em;
-    border-bottom: 1px solid var(--border);
+    border: 1px solid var(--border);
     text-align: start;
     line-height: 1.5;
+}
+
+th {
+    background-color: var(--accent-bg);
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+  background-color: var(--accent-bg);
 }
 
 @media (max-width: calc(1280px + 2rem)) {

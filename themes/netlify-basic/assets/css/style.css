@@ -140,63 +140,6 @@ pre code {
   word-wrap: normal
 }
 
-button,
-.button,
-a.button,
-input[type="submit"],
-input[type="reset"],
-input[type="button"] {
-  border: 1px solid var(--accent);
-  background-color: var(--accent);
-  color: var(--accent-text);
-  padding: 0.5rem 0.9rem;
-  text-decoration: none;
-  line-height: normal;
-}
-
-.button[aria-disabled="true"], 
-input:disabled,
-textarea:disabled,
-select:disabled,
-button[disabled] {
-  cursor: not-allowed;
-  background-color: var(--disabled);
-  border-color: var(--disabled);
-  color: var(--text-light);
-}
-
-input[type="range"] {
-  padding: 0;
-}
-
-/* Set the cursor to '?' on an abbreviation and style the abbreviation to show that there is more information underneath */
-abbr[title] {
-  cursor: help;
-  text-decoration-line: underline;
-  text-decoration-style: dotted;
-}
-
-button:enabled:hover,
-.button:not([aria-disabled="true"]):hover,
-input[type="submit"]:enabled:hover,
-input[type="reset"]:enabled:hover,
-input[type="button"]:enabled:hover {
-  background-color: var(--accent-hover);
-  border-color: var(--accent-hover);
-  cursor: pointer;
-}
-
-.button:focus-visible,
-button:focus-visible:where(:enabled),
-input:enabled:focus-visible:where(
-  [type="submit"],
-  [type="reset"],
-  [type="button"]
-) {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
 .container {
     display: flex;
     max-width: 1280px;
@@ -282,9 +225,9 @@ table {
 
 th,
 td {
-    padding: .5em;
-    border: 1px solid var(--border);
-    text-align: left
+    padding: 0.5em;
+    border-bottom: 1px solid var(--border);
+    text-align: start
 }
 
 @media (max-width: calc(1280px + 2rem)) {

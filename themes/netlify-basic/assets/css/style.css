@@ -221,6 +221,9 @@ td {
 }
 
 @media (max-width: calc(768px + 2rem)) {
+    :root {
+        --standard-border-radius: calc(var(--standard-border-radius) / 2)
+    }
     main img {
         border-radius: calc(var(--standard-border-radius) / 2)
     }

@@ -171,10 +171,6 @@ cite {
   font-style: normal;
 }
 
-dt {
-    color: var(--text-light);
-}
-
 .container {
     display: flex;
     max-width: 1280px;

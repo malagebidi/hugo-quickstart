@@ -148,11 +148,11 @@ pre code {
 }
 
 blockquote {
-  margin-inline-start: 2rem;
+  margin-inline-start: 1rem;
   margin-inline-end: 0;
-  margin-block: 2rem;
-  padding: 0.4rem 0.8rem;
-  border-inline-start: 0.35rem solid var(--accent);
+  margin-block: 1rem;
+  padding: 0.5rem 1rem;
+  border-inline-start: 0.25rem solid var(--accent);
   color: var(--text-light);
   font-style: italic;
 }

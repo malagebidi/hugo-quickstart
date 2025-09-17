@@ -14,7 +14,7 @@
   --accent: #0d47a1;
   --code: #d81b60;
   --preformatted: #444;
-  --marked: #ffdd33;
+  --disabled: #efefef;
 }
 
 /* Dark theme */
@@ -28,6 +28,7 @@
     --accent: #ffb300;
     --code: #f06292;
     --preformatted: #ccc;
+    --disabled: #111;
   }
   /* Add a bit of transparency so light media isn't so glaring in dark mode */
   img,
@@ -58,9 +59,10 @@ html {
 body {
     background-color: var(--bg);
     color: var(--text);
+    font-size: 1rem;
+    line-height: 1.625;
     margin: 0;
     padding: 0;
-    line-height: 1.625
 }
 
 a, a:visited {
@@ -69,17 +71,6 @@ a, a:visited {
 
 a:hover {
   text-decoration: none;
-}
-
-mark {
-  padding: 2px 5px;
-  border-radius: var(--standard-border-radius);
-  background-color: var(--marked);
-  color: black;
-}
-
-mark a {
-  color: #0d47a1;
 }
 
 h1 {

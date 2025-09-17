@@ -151,14 +151,22 @@ blockquote {
   margin-inline-start: 1rem;
   margin-inline-end: 0;
   margin-block: 1rem;
-  padding: 0.5rem 1rem;
+  padding: 1rem;
   border-inline-start: 0.25rem solid var(--accent);
   color: var(--text-light);
   font-style: italic;
 }
 
+blockquote > *:first-child {
+  margin-top: 0
+}
+
+blockquote > *:last-child {
+  margin-bottom: 0
+}
+
 cite {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: var(--text-light);
   font-style: normal;
 }

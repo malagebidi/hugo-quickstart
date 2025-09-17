@@ -12,6 +12,7 @@
   --border: #898EA4;
   --accent: #0d47a1;
   --code: #d81b60;
+  --preformatted: #444;
 }
 
 /* Dark theme */
@@ -23,6 +24,7 @@
     --text-light: #ababab;
     --accent: #ffb300;
     --code: #f06292;
+    --preformatted: #ccc;
   }
   /* Add a bit of transparency so light media isn't so glaring in dark mode */
   img,
@@ -91,6 +93,28 @@ kbd,
 samp {
     font-family: var(--mono-font);
     color: var(--code);
+}
+
+kbd {
+  color: var(--preformatted);
+  border: 1px solid var(--preformatted);
+  border-bottom: 3px solid var(--preformatted);
+  border-radius: var(--standard-border-radius);
+  padding: 0.1rem 0.4rem;
+}
+
+pre {
+  padding: 1rem 1.4rem;
+  max-width: 100%;
+  overflow: auto;
+  color: var(--preformatted);
+}
+
+pre code {
+  color: var(--preformatted);
+  background: none;
+  margin: 0;
+  padding: 0;
 }
 
 .container {

@@ -1,8 +1,0 @@
-{
-  "name": "my-hugo-site-environment",
-  "version": "1.0.0",
-  "private": true,
-  "engines": {
-    "node": "22.x"
-  }
-}

@@ -52,21 +52,11 @@ jobs:
           hugo-version: '0.149.0'
           extended: true
 
-      # 步骤 6: 缓存 Hugo 依赖项 (修正并优化)
-      # 优点融合与修正: 缓存真正的依赖项（Go模块），而不是错误的输出目录
-      - name: Cache Hugo modules
-        uses: actions/cache@v4
-        with:
-          path: ~/.hugo_cache/modules
-          key: ${{ runner.os }}-hugo-modules-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-hugo-modules-
-
-      # 步骤 7: 构建 Hugo 站点
+      # 步骤 6: 构建 Hugo 站点
       - name: Build with Hugo
         run: hugo --gc --minify --cleanDestinationDir
 
-      # 步骤 8: 部署到 Azure
+      # 步骤 7: 部署到 Azure
       # 优点融合
       - name: Deploy to Azure Static Web Apps
         id: builddeploy
@@ -94,6 +84,7 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_BUSH_0CD7D6500 }}
           action: "close"
+
 
 
 

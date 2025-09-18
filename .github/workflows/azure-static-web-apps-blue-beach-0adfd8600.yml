@@ -16,11 +16,6 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
-    # BEST PRACTICE: 使用 OIDC 进行安全认证，这是比静态 Token 更优的方式
-    permissions:
-      id-token: write
-      contents: read
-
     steps:
       # 步骤 1: 检出代码
       # 优点融合: 使用 fetch-depth: 0 获取完整 Git 历史，这对 Hugo 生成 lastmod 等信息很重要
@@ -43,6 +38,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
 
       # 步骤 4: 安装 Node.js 依赖
       - name: Install Node.js dependencies
@@ -96,6 +92,7 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_sanatized }}
           action: "close"
+
 
 
 

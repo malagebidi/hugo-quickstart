@@ -4,7 +4,7 @@ title: "Deng Yang"
 theme: "DY"
 timeZone: "Asia/Shanghai" 
 disableHugoGeneratorInject: true 
-uglyURLs: false
+uglyURLs: true
 
 ignoreFiles:
   - "\\.jpg$"
@@ -12,8 +12,8 @@ ignoreFiles:
   - "\\.png$"
 
 permalinks:
-  posts: /:slug
-  pages: /:slug
+  posts: /:slug/
+  pages: /:slug/
 
 params:
   mainSections: ["posts"]

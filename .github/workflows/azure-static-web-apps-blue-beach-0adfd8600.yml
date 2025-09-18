@@ -76,14 +76,12 @@ jobs:
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
-          github_id_token: ${{ steps.idtoken.outputs.result }}
+          azure_static_web_apps_api_token: "" 
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
           
           # 直接指向已构建好的目录
           app_location: "public"
-          
-          # 明确告诉 Azure 跳过它自己的所有构建步骤
           skip_app_build: true
           skip_api_build: true
 
@@ -97,6 +95,7 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           action: "close"
+
 
 
 

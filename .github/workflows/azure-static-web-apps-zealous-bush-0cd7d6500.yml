@@ -8,6 +8,8 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+  schedule:
+    - cron: "0 15 * * *"
 
 jobs:
   build_and_deploy_job:
@@ -15,23 +17,71 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
-      - uses: actions/checkout@v3
+      # 步骤 1: 检出代码
+      # 优点融合: 使用 fetch-depth: 0 获取完整 Git 历史，这对 Hugo 生成 lastmod 等信息很重要
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           submodules: true
-          lfs: false
-      - name: Build And Deploy
+          fetch-depth: 0
+
+      # 步骤 2: 设置 Go 环境 (Hugo 依赖 Go)
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      # 步骤 3: 设置 Node.js 环境 (用于主题的 CSS/JS 构建)
+      # 优点融合: 包含了 Node.js 设置，以支持现代 Hugo 主题
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      # 步骤 4: 安装 Node.js 依赖
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      # 步骤 5: 设置 Hugo
+      # 优点融合: 使用 peaceiris action 并固定版本，同时保留了优秀注释
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.149.0'
+          extended: true
+
+      # 步骤 6: 缓存 Hugo 依赖项 (修正并优化)
+      # 优点融合与修正: 缓存真正的依赖项（Go模块），而不是错误的输出目录
+      - name: Cache Hugo modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.hugo_cache/modules
+          key: ${{ runner.os }}-hugo-modules-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-hugo-modules-
+
+      # 步骤 7: 构建 Hugo 站点
+      - name: Build with Hugo
+        run: hugo --gc --minify --cleanDestinationDir
+
+      # 步骤 8: 部署到 Azure
+      # 优点融合
+      - name: Deploy to Azure Static Web Apps
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_BUSH_0CD7D6500 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "public" # Built app content directory - optional
-          ###### End of Repository/Build Configurations ######
+          
+          # 直接指向已构建好的目录
+          app_location: "public"
+          api_location: ""
+          output_location: "public"
+          skip_app_build: true
+          skip_api_build: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -44,3 +94,6 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ZEALOUS_BUSH_0CD7D6500 }}
           action: "close"
+
+
+

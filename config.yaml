@@ -1,7 +1,7 @@
 baseURL: "https://dengya.ng/"
 languageCode: en-us
 title: "Deng Yang"
-theme: "DY"
+theme: "dy"
 timeZone: "Asia/Shanghai" 
 disableHugoGeneratorInject: true 
 uglyURLs: true

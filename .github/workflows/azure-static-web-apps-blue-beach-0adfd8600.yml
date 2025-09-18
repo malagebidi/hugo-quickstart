@@ -70,18 +70,7 @@ jobs:
       - name: Build with Hugo
         run: hugo --gc --minify --cleanDestinationDir
 
-      # 步骤 8: OIDC 认证 (如果需要)
-      # 如果你的 Azure SWA 是用 OIDC 创建的，这一步是必须的
-      - name: Get Id Token for OIDC
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
-
-      # 步骤 9: 部署到 Azure
+      # 步骤 8: 部署到 Azure
       # 优点融合: 使用 OIDC 令牌进行部署，并明确跳过 Azure 的构建步骤
       - name: Deploy to Azure Static Web Apps
         id: builddeploy
@@ -108,5 +97,6 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         with:
           action: "close"
+
 
 

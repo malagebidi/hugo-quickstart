@@ -36,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
 
@@ -82,8 +82,6 @@ jobs:
           output_location: "public"
           skip_app_build: true
           skip_api_build: true
-        env:
-          HUGO_VERSION: '0.149.0'
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -96,4 +94,5 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_SANITIZED }}
           action: "close"
+
 

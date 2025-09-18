@@ -12,17 +12,11 @@ ignoreFiles:
   - "\\.png$"
 
 permalinks:
-  posts: /:slug/
-  pages: /:slug/
+  posts: /:slug
+  pages: /:slug
 
 params:
   mainSections: ["posts"]
-
-menu:
-  main:
-    - name: "About"
-      url: "/about/"
-      weight: 10
 
 mediaTypes:
   image/avif:

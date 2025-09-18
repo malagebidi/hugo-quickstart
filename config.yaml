@@ -4,7 +4,7 @@ title: "Deng Yang"
 theme: "DY"
 timeZone: "Asia/Shanghai" 
 disableHugoGeneratorInject: true 
-uglyURLs: true
+uglyURLs: false
 
 ignoreFiles:
   - "\\.jpg$"

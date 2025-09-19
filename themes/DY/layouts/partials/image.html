@@ -185,7 +185,7 @@
   {{ if le $largestInt 640 }}
     {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
   {{ else }}
-    {{ $sizeRules = $sizeRules | append "768px" }}
+    {{ $sizeRules = $sizeRules | append "640px" }}
   {{ end }}
   
   {{ $sizesAttr = delimit $sizeRules ", " }}

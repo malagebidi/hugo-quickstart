@@ -105,6 +105,40 @@ jobs:
           # 用于跟踪已处理的原始文件
           declare -A processed_originals
           declare -A file_dimensions
+
+          # 为所有尺寸创建统一的裁剪函数
+          calculate_4x3_dimensions() {
+            local input_width=$1
+            local input_height=$2
+            local target_max_width=$3
+            
+            # 计算比例
+            local aspect_ratio=$(echo "scale=3; $input_width / $input_height" | bc -l)
+            local target_ratio=$(echo "scale=3; 4 / 3" | bc -l)
+            
+            local crop_width crop_height final_width final_height
+            
+            if (( $(echo "$aspect_ratio > $target_ratio" | bc -l) )); then
+              # 图片太宽，以高度为基准裁剪
+              crop_width=$((input_height * 4 / 3))
+              crop_height=$input_height
+            else
+              # 图片太高或接近4:3，以宽度为基准裁剪
+              crop_width=$input_width
+              crop_height=$((input_width * 3 / 4))
+            fi
+            
+            # 如果裁剪后的宽度仍然大于目标宽度，需要进一步缩放
+            if [ "$crop_width" -gt "$target_max_width" ]; then
+              final_width=$target_max_width
+              final_height=$((target_max_width * 3 / 4))
+            else
+              final_width=$crop_width
+              final_height=$crop_height
+            fi
+            
+            echo "${final_width}x${final_height}"
+          }
           
           # 首先获取所有文件的尺寸信息
           for file_path in $FILES_TO_PROCESS; do
@@ -214,7 +248,7 @@ jobs:
                   
                   # 生成4:3版本
                   target_height=$((target_width * 3 / 4))
-                  
+
                   echo "  - Processing ${target_width}w 4:3 version (${target_width}x${target_height})..."
                   
                   success=false

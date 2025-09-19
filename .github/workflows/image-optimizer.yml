@@ -55,13 +55,13 @@ jobs:
                 height=$(echo "$dimensions" | cut -d'x' -f2)
                 
                 # 定义需要的尺寸
-                sizes="384 512 768 1024 1536 2048"
+                sizes="400 640 880 1120 1600 2080 2560"
                 
                 # 标记是否需要处理这个文件
                 needs_processing=false
                 
                 # 检查原图AVIF
-                if [ "$width" -le 2048 ] && [ ! -f "${base_path}.avif" ]; then
+                if [ "$width" -le 2560 ] && [ ! -f "${base_path}.avif" ]; then
                   needs_processing=true
                   echo "  Missing original AVIF for: $file"
                 fi
@@ -170,10 +170,10 @@ jobs:
             echo "  Original dimensions: ${width}x${height}"
             
             # 定义需要生成的尺寸
-            sizes="384 512 768 1024 1536 2048"
+            sizes="400 640 880 1120 1600 2080 2560"
 
             # 处理原图的4:3版本
-            if [ "$width" -le 2048 ] && [ ! -f "${base_path}.avif" ]; then
+            if [ "$width" -le 2560 ] && [ ! -f "${base_path}.avif" ]; then
               # 使用智能裁剪计算原图尺寸
               dimensions_4x3=$(calculate_4x3_dimensions $width $height $width)
               target_width=$(echo "$dimensions_4x3" | cut -d'x' -f1)

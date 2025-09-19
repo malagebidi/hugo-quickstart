@@ -140,8 +140,12 @@ jobs:
 
             # 处理原图的4:3版本
             if [ "$width" -le 2048 ] && [ ! -f "${base_path}.avif" ]; then
-              target_height=$((width * 3 / 4))
-              echo "  - Will generate original 4:3 version (${width}x${target_height})"
+              # 使用智能裁剪计算原图尺寸
+              dimensions_4x3=$(calculate_4x3_dimensions $width $height $width)
+              target_width=$(echo "$dimensions_4x3" | cut -d'x' -f1)
+              target_height=$(echo "$dimensions_4x3" | cut -d'x' -f2)
+
+              echo "  - Will generate original 4:3 version (${target_width}x${target_height}) from (${width}x${height})"
               
               echo "    Processing original 4:3..."
               success=false
@@ -199,13 +203,18 @@ jobs:
             
             # 处理各个尺寸
             for target_width in $sizes; do
-              if [ "$width" -gt "$target_width" ]; then
+              # 首先计算裁剪后的基础尺寸
+              dimensions_4x3=$(calculate_4x3_dimensions $width $height $width)
+              base_crop_width=$(echo "$dimensions_4x3" | cut -d'x' -f1)
 
-                # 处理4:3版本（独立检查，不依赖上面的success状态）
+              # 只有当目标尺寸小于裁剪后的宽度时才生成
+              if [ "$target_width" -lt "$base_crop_width" ]; then
+
                 if [ ! -f "${base_path}_${target_width}w.avif" ]; then
                   
                   # 生成4:3版本
                   target_height=$((target_width * 3 / 4))
+                  
                   echo "  - Processing ${target_width}w 4:3 version (${target_width}x${target_height})..."
                   
                   success=false

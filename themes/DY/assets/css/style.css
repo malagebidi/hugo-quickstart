@@ -173,7 +173,7 @@ cite {
 
 .container {
     display: flex;
-    max-width: 1280px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: 4em 0.75em;
     gap: 6em
@@ -274,7 +274,7 @@ tr:nth-child(even) {
   background-color: var(--accent-bg);
 }
 
-@media (max-width: calc(1280px + 2rem)) {
+@media (max-width: 1000px) {
     .container {
         flex-direction: column;
         align-items: center;
@@ -283,13 +283,13 @@ tr:nth-child(even) {
     
     aside {
         order: -1;
-        max-width: 768px;
+        max-width: 640px;
         width: 100%;
         text-align: left
     }
 }
 
-@media (max-width: calc(768px + 2rem)) {
+@media (max-width: 664px) {
     :root {
         --featured-border-radius: 0.25rem;
         --standard-border-radius: 0.125rem;

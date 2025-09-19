@@ -188,6 +188,12 @@ aside {
     border: none
 }
 
+aside h1 {
+    font-size: 1.5em;
+    line-height: 1;
+    margin-bottom: 0.5rem
+}
+
 aside a {
     color: inherit !important;
     text-decoration: none

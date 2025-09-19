@@ -1,5 +1,5 @@
 :root {
-  --sans-font: -apple-system, Roboto, noto sans, segoe ui, pingfang sc, noto sans sc, "Noto Sans CJK SC", microsoft yahei, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
+  --sans-font: -apple-system, Roboto, noto sans, segoe ui, pingfang sc, noto sans sc, noto sans cjk sc, microsoft yahei, sans-serif, apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji;
   --mono-font: ui-monospace, SFMono-Regular, Consolas, "Roboto Mono", "Liberation Mono", monospace;
   
   --featured-border-radius: 0.5rem;

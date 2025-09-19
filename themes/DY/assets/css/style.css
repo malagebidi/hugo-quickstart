@@ -175,8 +175,8 @@ cite {
     display: flex;
     max-width: 1280px;
     margin: 0 auto;
-    padding: 4em 1em;
-    gap: 8em
+    padding: 4em 0.75em;
+    gap: 6em
 }
 
 aside {
@@ -278,7 +278,7 @@ tr:nth-child(even) {
     .container {
         flex-direction: column;
         align-items: center;
-        gap: 4em
+        gap: 3em
     }
     
     aside {

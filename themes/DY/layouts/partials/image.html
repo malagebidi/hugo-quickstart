@@ -76,26 +76,26 @@
 
 {{/* 根据图片类型调整尺寸 */}}
 {{ if eq $type "featured" }}
-  {{/* 特色图片：强制16:9比例，最大768px */}}
-  {{ $width = "768" }}
-  {{ $height = "432" }}
+  {{/* 特色图片：强制4:3比例，最大640px */}}
+  {{ $width = "640" }}
+  {{ $height = "480" }}
   {{ $dimensionsFound = true }}
 {{ else if eq $type "content" }}
-  {{/* 文章内图片：保持原比例但限制最大宽度768px */}}
+  {{/* 文章内图片：保持原比例但限制最大宽度640px */}}
   {{ if $dimensionsFound }}
     {{ $originalWidth := int $width }}
     {{ $originalHeight := int $height }}
-    {{ if gt $originalWidth 768 }}
+    {{ if gt $originalWidth 640 }}
       {{ $ratio := div (float $originalHeight) (float $originalWidth) }}
-      {{ $width = "768" }}
-      {{ $height = printf "%.0f" (mul 768.0 $ratio) }}
+      {{ $width = "640" }}
+      {{ $height = printf "%.0f" (mul 640.0 $ratio) }}
     {{ end }}
   {{ end }}
 {{ end }}
 
-{{/* Build srcset for different sizes - 限制最大768px */}}
+{{/* Build srcset for different sizes - 限制最大640px */}}
 {{ $srcset := slice }}
-{{ $sizes := slice "256" "384" "512" "768" "1024" "1536" "2048" "3072" "4096" }}
+{{ $sizes := slice "400" "640" "880" "1120" "1600" "2080" "2560" }}
 {{ $availableSizes := slice }}
 {{ $sizeToUrl := dict }}
 
@@ -106,14 +106,8 @@
   
   {{/* 如果是特色图片，优先查找16:9版本 */}}
   {{ if eq $type "featured" }}
-    {{ $sizedPath = printf "%s_%sw-16x9.avif" $srcBase . }}
+    {{ $sizedPath = printf "%s_%sw.avif" $srcBase . }}
     {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
-    
-    {{/* 如果16:9版本不存在，fallback到常规版本 */}}
-    {{ if not $sizedResource }}
-      {{ $sizedPath = printf "%s_%sw.avif" $srcBase . }}
-      {{ $sizedResource = $page.Resources.GetMatch $sizedPath }}
-    {{ end }}
   {{ else }}
     {{/* 内容图片使用常规版本 */}}
     {{ $sizedPath = printf "%s_%sw.avif" $srcBase . }}
@@ -132,15 +126,8 @@
 {{ $originalAvifResource := "" }}
 
 {{ if eq $type "featured" }}
-  {{/* 对于特色图片，优先查找16:9版本的原始尺寸 */}}
-  {{ $originalAvifPath = printf "%s-16x9.avif" $srcBase }}
+  {{ $originalAvifPath = printf "%s.avif" $srcBase }}
   {{ $originalAvifResource = $page.Resources.GetMatch $originalAvifPath }}
-  
-  {{/* 如果16:9版本不存在，fallback到常规原始尺寸 */}}
-  {{ if not $originalAvifResource }}
-    {{ $originalAvifPath = printf "%s.avif" $srcBase }}
-    {{ $originalAvifResource = $page.Resources.GetMatch $originalAvifPath }}
-  {{ end }}
 {{ else }}
   {{/* 内容图片可以使用原始尺寸 */}}
   {{ $originalAvifPath = printf "%s.avif" $srcBase }}
@@ -153,9 +140,9 @@
 {{ if $originalAvifResource }}
   {{ $mainSrc = $originalAvifResource.RelPermalink }}
   {{ if $dimensionsFound }}
-    {{/* Only add original size if it's not already in the list and not larger than 768px */}}
+    {{/* Only add original size if it's not already in the list and not larger than 640px */}}
     {{ $originalWidthInt := int $width }}
-    {{ if le $originalWidthInt 768 }}
+    {{ if le $originalWidthInt 640 }}
       {{ $widthInList := false }}
       {{ range $availableSizes }}
         {{ if eq . $width }}
@@ -177,7 +164,7 @@
   {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
 {{ end }}
 
-{{/* 生成适配768px限制的sizes属性 */}}
+{{/* 生成适配640px限制的sizes属性 */}}
 {{ $sizesAttr := "" }}
 {{ if gt (len $availableSizes) 0 }}
   {{ $sortedSizes := sort $availableSizes }}
@@ -186,16 +173,16 @@
   {{ range $i, $size := $sortedSizes }}
     {{ $sizeInt := int $size }}
     {{ if lt $i (sub (len $sortedSizes) 1) }}
-      {{ if le $sizeInt 768 }}
+      {{ if le $sizeInt 640 }}
         {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
       {{ end }}
     {{ end }}
   {{ end }}
   
-  {{/* Add the default size, but cap at 768px */}}
+  {{/* Add the default size, but cap at 640px */}}
   {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
   {{ $largestInt := int $largestAvailable }}
-  {{ if le $largestInt 768 }}
+  {{ if le $largestInt 640 }}
     {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
   {{ else }}
     {{ $sizeRules = $sizeRules | append "768px" }}
@@ -203,8 +190,8 @@
   
   {{ $sizesAttr = delimit $sizeRules ", " }}
 {{ else }}
-  {{/* 默认sizes，限制768px */}}
-  {{ $sizesAttr = "(max-width: 256px) 256px, (max-width: 384px) 384px, (max-width: 512px) 512px, (max-width: 768px) 768px, 768px" }}
+  {{/* 默认sizes，限制640px */}}
+  {{ $sizesAttr = "(max-width: 400px) 400px, (max-width: 640px) 640px, 640px" }}
 {{ end }}
 
 {{/* If we have AVIF files, render the optimized image */}}
@@ -238,11 +225,6 @@
       <br>No dimensions file found at: {{ $dimensionsFilePath }}
     {{ end }}
     {{ if eq $type "featured" }}
-    <br><strong>Looking for 16:9 versions:</strong>
-    {{ range $sizes }}
-      {{ $path16x9 := printf "%s_%sw-16x9.avif" $srcBase . }}
-      <br>  - {{ $path16x9 }}: {{ if $page.Resources.GetMatch $path16x9 }}✅{{ else }}❌{{ end }}
-    {{ end }}
     <br><strong>Looking for regular versions:</strong>
     {{ range $sizes }}
       {{ $pathRegular := printf "%s_%sw.avif" $srcBase . }}

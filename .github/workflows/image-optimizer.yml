@@ -193,8 +193,8 @@ jobs:
                   "wait": 30,
                   "urllist": ["'$base_url'"],
                   "paramlist": [{
-                    "resize": 4,
-                    "resize_width": '$width',
+                    "resize": 1,
+                    "resize_width": '$target_width',
                     "resize_height": '$target_height',
                     "convertto": "avif"
                   }]
@@ -262,7 +262,7 @@ jobs:
                       "wait": 30,
                       "urllist": ["'$base_url'"],
                       "paramlist": [{
-                        "resize": 4,
+                        "resize": 1,
                         "resize_width": '$target_width',
                         "resize_height": '$target_height',
                         "convertto": "avif"

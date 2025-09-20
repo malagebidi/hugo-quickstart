@@ -1,5 +1,4 @@
 {{ define "main" }}
-{{- partial "aside.html" . -}}
 <main>
   {{ with .Params.featured }}
     <div class="featured-image">
@@ -17,5 +16,3 @@
   <div class="post-content">{{ .Content }}</div>
 </main>
 {{ end }}
-
-

@@ -1,5 +1,5 @@
 {{ define "main" }}
-    <header class="site-header"></header>
+    <h1>{{ .Title }}</h1>
     <h2 class="post-title">{{ .Title }}</h2>
     <time class="post-date" datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}" itemprop="datePublished">{{ .Date.Format "2006-01-02" }}</time>
     {{ with .Params.featured }}
@@ -15,3 +15,4 @@
     {{ end }}
     <div class="post-content">{{ .Content }}</div>
 {{ end }}
+

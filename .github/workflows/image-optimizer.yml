@@ -107,31 +107,31 @@ jobs:
           declare -A file_dimensions
 
           # 为所有尺寸创建统一的裁剪函数
-          calculate_4x3_dimensions() {
+          calculate_16x9_dimensions() {
             local input_width=$1
             local input_height=$2
             local target_max_width=$3
             
             # 计算比例
             local aspect_ratio=$(echo "scale=3; $input_width / $input_height" | bc -l)
-            local target_ratio=$(echo "scale=3; 4 / 3" | bc -l)
+            local target_ratio=$(echo "scale=3; 16 / 9" | bc -l)
             
             local crop_width crop_height final_width final_height
             
             if (( $(echo "$aspect_ratio > $target_ratio" | bc -l) )); then
               # 图片太宽，以高度为基准裁剪
-              crop_width=$((input_height * 4 / 3))
+              crop_width=$((input_height * 16 / 9))
               crop_height=$input_height
             else
               # 图片太高或接近4:3，以宽度为基准裁剪
               crop_width=$input_width
-              crop_height=$((input_width * 3 / 4))
+              crop_height=$((input_width * 9 / 16))
             fi
             
             # 如果裁剪后的宽度仍然大于目标宽度，需要进一步缩放
             if [ "$crop_width" -gt "$target_max_width" ]; then
               final_width=$target_max_width
-              final_height=$((target_max_width * 3 / 4))
+              final_height=$((target_max_width * 9 / 16))
             else
               final_width=$crop_width
               final_height=$crop_height
@@ -175,13 +175,13 @@ jobs:
             # 处理原图的4:3版本
             if [ "$width" -le 2560 ] && [ ! -f "${base_path}.avif" ]; then
               # 使用智能裁剪计算原图尺寸
-              dimensions_4x3=$(calculate_4x3_dimensions $width $height $width)
-              target_width=$(echo "$dimensions_4x3" | cut -d'x' -f1)
-              target_height=$(echo "$dimensions_4x3" | cut -d'x' -f2)
+              dimensions_16x9=$(calculate_16x9_dimensions $width $height $width)
+              target_width=$(echo "$dimensions_16x9" | cut -d'x' -f1)
+              target_height=$(echo "$dimensions_16x9" | cut -d'x' -f2)
 
-              echo "  - Will generate original 4:3 version (${target_width}x${target_height}) from (${width}x${height})"
+              echo "  - Will generate original 16x9 version (${target_width}x${target_height}) from (${width}x${height})"
               
-              echo "    Processing original 4:3..."
+              echo "    Processing original 16x9..."
               success=false
               for attempt in $(seq 1 $MAX_ATTEMPTS); do
                 echo "      Attempt $attempt/$MAX_ATTEMPTS"
@@ -231,29 +231,29 @@ jobs:
               done
               
               if [ "$success" != "true" ]; then
-                echo "      ⚠️ Failed to generate original 4:3 after $MAX_ATTEMPTS attempts"
+                echo "      ⚠️ Failed to generate original 16x9 after $MAX_ATTEMPTS attempts"
               fi
             fi
             
             # 处理各个尺寸
             for target_width in $sizes; do
               # 首先计算裁剪后的基础尺寸
-              dimensions_4x3=$(calculate_4x3_dimensions $width $height $width)
-              base_crop_width=$(echo "$dimensions_4x3" | cut -d'x' -f1)
+              dimensions_16x9=$(calculate_16x9_dimensions $width $height $width)
+              base_crop_width=$(echo "$dimensions_16x9" | cut -d'x' -f1)
 
               # 只有当目标尺寸小于裁剪后的宽度时才生成
               if [ "$target_width" -lt "$base_crop_width" ]; then
 
                 if [ ! -f "${base_path}_${target_width}w.avif" ]; then
                   
-                  # 生成4:3版本
-                  target_height=$((target_width * 3 / 4))
+                  # 生成16x9版本
+                  target_height=$((target_width * 9 / 16))
 
-                  echo "  - Processing ${target_width}w 4:3 version (${target_width}x${target_height})..."
+                  echo "  - Processing ${target_width}w 16:9 version (${target_width}x${target_height})..."
                   
                   success=false
                   for attempt in $(seq 1 $MAX_ATTEMPTS); do
-                    echo "      Attempt $attempt/$MAX_ATTEMPTS for ${target_width}w 4:3"
+                    echo "      Attempt $attempt/$MAX_ATTEMPTS for ${target_width}w 16:9"
                     
                     JSON_PAYLOAD='{
                       "key": "'$SHORTPIXEL_KEY'",
@@ -301,10 +301,10 @@ jobs:
                   done
                   
                   if [ "$success" != "true" ]; then
-                    echo "      ⚠️ Failed to generate ${target_width}w 4:3 after $MAX_ATTEMPTS attempts"
+                    echo "      ⚠️ Failed to generate ${target_width}w 16:9 after $MAX_ATTEMPTS attempts"
                   fi
                 else
-                  echo "  - ${target_width}w 4:3 version already exists, skipping"
+                  echo "  - ${target_width}w 16:9 version already exists, skipping"
                 fi
               fi
             done

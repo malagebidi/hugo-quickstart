@@ -1,5 +1,5 @@
 baseURL: "https://dengya.ng/"
-languageCode: en-us
+languageCode: "zh-cn"
 title: "Deng Yang"
 theme: "DY"
 timeZone: "Asia/Shanghai" 
@@ -16,6 +16,11 @@ permalinks:
   pages: /:slug/
 
 params:
+  description: '专注于DevOps工程实践，分享自动化部署、持续集成和云原生技术'
+  keywords: 'DevOps, CI/CD, Docker, Kubernetes, 自动化'
+  author: 'Deng Yang'
+
+  
   mainSections: ["posts"]
 
 mediaTypes:

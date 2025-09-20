@@ -185,6 +185,10 @@ aside {
     border: none
 }
 
+aside .logo {
+    margin-bottom: 1rem;
+}
+
 aside h1 {
     font-size: 1.5em;
     line-height: 1;

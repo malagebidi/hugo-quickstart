@@ -185,6 +185,7 @@ img {
 }
 
 .post-title {
+    font-size: 2em;
     line-height: 1;
     margin-bottom: 1rem
 }

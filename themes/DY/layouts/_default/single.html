@@ -1,7 +1,5 @@
 {{ define "main" }}
-<aside>
-  <h1><a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a></h1>
-</aside>
+{{ partial "aside.html" . }}
 <main>
   {{ with .Params.featured }}
     <div class="featured-image">
@@ -19,6 +17,3 @@
   <div class="post-content">{{ .Content }}</div>
 </main>
 {{ end }}
-
-
-

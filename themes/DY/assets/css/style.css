@@ -169,6 +169,14 @@ cite {
   font-style: normal;
 }
 
+img {
+    display: block;
+    margin-bottom: 1rem;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--standard-border-radius)
+}
+
 .container {
     display: flex;
     max-width: 1000px;
@@ -183,12 +191,6 @@ aside {
     flex-basis: 0;
     background-color: inherit;
     border: none
-}
-
-aside .avatar {
-    margin-bottom: 1rem;
-    display: block;
-    line-height: 0;
 }
 
 aside h1 {
@@ -207,20 +209,8 @@ main {
     width: 100%
 }
 
-main img {
-    display: block;
-    margin-bottom: 1rem;
-    max-width: 100%;
-    height: auto;
-    border-radius: var(--standard-border-radius)
-}
-
 .featured-image {
     margin-bottom: 2rem
-}
-
-.featured-image img {
-    border-radius: var(--standard-border-radius)
 }
 
 .post-title {

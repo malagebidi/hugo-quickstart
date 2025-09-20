@@ -123,7 +123,7 @@ jobs:
               crop_width=$((input_height * 16 / 9))
               crop_height=$input_height
             else
-              # 图片太高或接近4:3，以宽度为基准裁剪
+              # 图片太高或接近16:9，以宽度为基准裁剪
               crop_width=$input_width
               crop_height=$((input_width * 9 / 16))
             fi
@@ -172,7 +172,7 @@ jobs:
             # 定义需要生成的尺寸
             sizes="400 640 880 1120 1600 2080 2560"
 
-            # 处理原图的4:3版本
+            # 处理原图的16:9版本
             if [ "$width" -le 2560 ] && [ ! -f "${base_path}.avif" ]; then
               # 使用智能裁剪计算原图尺寸
               dimensions_16x9=$(calculate_16x9_dimensions $width $height $width)

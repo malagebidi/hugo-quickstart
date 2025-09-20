@@ -195,6 +195,10 @@ img {
     line-height: 1;
 }
 
+.post-content {
+    max-width: 640px;
+}
+
 .post-content>*:last-child {
     margin-bottom: 0
 }

@@ -64,7 +64,13 @@ body {
     font-size: 1rem;
     line-height: 1.625;
     margin: 0;
-    padding: 0;
+    padding: 1em .75em;
+}
+
+.container {
+    max-width: 1120px;
+    margin: 0 auto;
+    text-align: center;
 }
 
 a, a:visited {
@@ -175,13 +181,6 @@ img {
     max-width: 100%;
     height: auto;
     border-radius: var(--standard-border-radius)
-}
-
-.container {
-    max-width: 1111px;
-    margin: 0 auto;
-    padding: 1em 0.75em;
-    text-align: center;
 }
 
 .post-title {

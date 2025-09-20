@@ -1,7 +1,7 @@
 :root {
   --sans-font: -apple-system, Roboto, "Noto Sans", "Segoe UI", "PingFang SC", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif, "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   --mono-font: ui-monospace, SFMono-Regular, "Roboto Mono", "Liberation Mono", Consolas, monospace;
-  --standard-border-radius: 0.125rem;
+  --standard-border-radius: 0.5rem;
 
   /* Default (light) theme */
   --bg: #fff;
@@ -253,13 +253,9 @@ tr:nth-child(even) {
 }
 
 @media (max-width: 1000px) {
-    :root {
-        --standard-border-radius: 0.25rem;
-    }
+
 }
 
 @media (max-width: 664px) {
-    :root {
-        --standard-border-radius: 0.5rem;
-    }
+
 }

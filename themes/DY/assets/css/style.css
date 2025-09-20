@@ -180,7 +180,8 @@ img {
 .container {
     max-width: 1111px;
     margin: 0 auto;
-    padding: 4em 0.75em;
+    padding: 1em 0.75em;
+    text-align: center;
 }
 
 .post-title {
@@ -197,6 +198,7 @@ img {
 
 .post-content {
     max-width: 640px;
+    text-align: left;
 }
 
 .post-content>*:last-child {

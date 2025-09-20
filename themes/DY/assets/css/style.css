@@ -184,6 +184,14 @@ img {
     border-radius: var(--standard-border-radius)
 }
 
+.site-title {
+    line-height: 1;
+}
+
+.site-title a {
+    text-decoration: none;
+}
+
 .post-title {
     font-size: 2em;
     line-height: 1;

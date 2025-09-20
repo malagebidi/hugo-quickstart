@@ -76,9 +76,9 @@
 
 {{/* 根据图片类型调整尺寸 */}}
 {{ if eq $type "featured" }}
-  {{/* 特色图片：强制4:3比例，最大640px */}}
-  {{ $width = "640" }}
-  {{ $height = "480" }}
+  {{/* 特色图片：强制16:9比例，最大1120px */}}
+  {{ $width = "1120" }}
+  {{ $height = "630" }}
   {{ $dimensionsFound = true }}
 {{ else if eq $type "content" }}
   {{/* 文章内图片：保持原比例但限制最大宽度640px */}}
@@ -93,7 +93,7 @@
   {{ end }}
 {{ end }}
 
-{{/* Build srcset for different sizes - 限制最大640px */}}
+{{/* Build srcset for different sizes - 限制最大1120px */}}
 {{ $srcset := slice }}
 {{ $sizes := slice "400" "640" "880" "1120" "1600" "2080" "2560" }}
 {{ $availableSizes := slice }}
@@ -140,9 +140,9 @@
 {{ if $originalAvifResource }}
   {{ $mainSrc = $originalAvifResource.RelPermalink }}
   {{ if $dimensionsFound }}
-    {{/* Only add original size if it's not already in the list and not larger than 640px */}}
+    {{/* Only add original size if it's not already in the list and not larger than 1120px */}}
     {{ $originalWidthInt := int $width }}
-    {{ if le $originalWidthInt 640 }}
+    {{ if le $originalWidthInt 1120 }}
       {{ $widthInList := false }}
       {{ range $availableSizes }}
         {{ if eq . $width }}
@@ -164,7 +164,7 @@
   {{ $mainSrc = index $sizeToUrl $largestAvailableSize }}
 {{ end }}
 
-{{/* 生成适配640px限制的sizes属性 */}}
+{{/* 生成适配1120px限制的sizes属性 */}}
 {{ $sizesAttr := "" }}
 {{ if gt (len $availableSizes) 0 }}
   {{ $sortedSizes := sort $availableSizes }}
@@ -173,25 +173,25 @@
   {{ range $i, $size := $sortedSizes }}
     {{ $sizeInt := int $size }}
     {{ if lt $i (sub (len $sortedSizes) 1) }}
-      {{ if le $sizeInt 640 }}
+      {{ if le $sizeInt 1120 }}
         {{ $sizeRules = $sizeRules | append (printf "(max-width: %spx) %spx" $size $size) }}
       {{ end }}
     {{ end }}
   {{ end }}
   
-  {{/* Add the default size, but cap at 640px */}}
+  {{/* Add the default size, but cap at 1120px */}}
   {{ $largestAvailable := index (last 1 $sortedSizes) 0 }}
   {{ $largestInt := int $largestAvailable }}
-  {{ if le $largestInt 640 }}
+  {{ if le $largestInt 1120 }}
     {{ $sizeRules = $sizeRules | append (printf "%spx" $largestAvailable) }}
   {{ else }}
-    {{ $sizeRules = $sizeRules | append "640px" }}
+    {{ $sizeRules = $sizeRules | append "1120px" }}
   {{ end }}
   
   {{ $sizesAttr = delimit $sizeRules ", " }}
 {{ else }}
-  {{/* 默认sizes，限制640px */}}
-  {{ $sizesAttr = "(max-width: 400px) 400px, (max-width: 640px) 640px, 640px" }}
+  {{/* 默认sizes，限制1120px */}}
+  {{ $sizesAttr = "(max-width: 400px) 400px, (max-width: 640px) 640px, (max-width: 880px) 880px, (max-width: 1120px) 1120px, 1120px" }}
 {{ end }}
 
 {{/* If we have AVIF files, render the optimized image */}}

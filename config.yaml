@@ -1,7 +1,6 @@
 baseURL: "https://dengya.ng/"
 languageCode: "zh-cn"
 title: "Deng Yang"
-description: "专注于DevOps工程实践，分享自动化部署、持续集成和云原生技术"
 theme: "DY"
 timeZone: "Asia/Shanghai" 
 disableHugoGeneratorInject: true 
@@ -17,6 +16,8 @@ permalinks:
   pages: /:slug/
 
 params:
+  description: "专注于DevOps工程实践，分享自动化部署、持续集成和云原生技术"
+  
   mainSections: ["posts"]
 
 mediaTypes:

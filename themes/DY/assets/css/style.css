@@ -64,12 +64,13 @@ body {
     font-size: 1rem;
     line-height: 1.625;
     margin: 0;
-    padding: 1em .75em;
+    padding: 0 0;
 }
 
 .container {
     max-width: 1120px;
     margin: 0 auto;
+    padding: 1em .75em;
     text-align: center;
 }
 

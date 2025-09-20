@@ -178,15 +178,13 @@ img {
 }
 
 .container {
-    display: flex;
-    max-width: 1000px;
-    margin: 0 auto;
+    display: block;
     padding: 4em 0.75em;
 }
 
 main {
     max-width: 640px;
-    width: 100%
+    margin: 0 auto;
 }
 
 .featured-image {

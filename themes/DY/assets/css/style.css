@@ -187,6 +187,8 @@ aside {
 
 aside .avatar {
     margin-bottom: 1rem;
+    display: block;
+    line-height: 0;
 }
 
 aside h1 {

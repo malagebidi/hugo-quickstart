@@ -182,25 +182,6 @@ img {
     max-width: 1000px;
     margin: 0 auto;
     padding: 4em 0.75em;
-    gap: 6em
-}
-
-aside {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: 0;
-    height: fit-content;
-}
-
-aside h1 {
-    font-size: 1.5em;
-    line-height: 1;
-    margin-bottom: 0.5rem
-}
-
-aside a {
-    color: inherit !important;
-    text-decoration: none
 }
 
 main {
@@ -278,14 +259,6 @@ tr:nth-child(even) {
     .container {
         flex-direction: column;
         align-items: center;
-        gap: 3em
-    }
-    
-    aside {
-        order: -1;
-        max-width: 640px;
-        width: 100%;
-        text-align: left
     }
 }
 
